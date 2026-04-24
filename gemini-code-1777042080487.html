@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>Kombucha Twin V4.0 - Climate Adaptive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #050505; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #111827; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
+        .toast-enter { opacity: 1; transform: translateY(0); }
+        .toast-exit { opacity: 0; transform: translateY(-20px); pointer-events: none; }
+    </style>
+</head>
+<body class="text-slate-300 p-4 md:p-8 min-h-screen">
+    
+    <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-amber-600 text-white px-6 py-3 rounded-full shadow-2xl font-bold text-sm transition-all duration-300 z-50 toast-exit flex items-center gap-2">
+        <span id="toast-msg">记录已保存</span>
+    </div>
+
+    <div class="max-w-[1440px] mx-auto space-y-6">
+        
+        <header class="bg-gray-900/50 border border-gray-800 rounded-2xl p-6 flex flex-col md:flex-row justify-between items-center backdrop-blur-md">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center text-black font-black text-2xl">K</div>
+                <div>
+                    <h1 class="text-2xl font-bold text-white tracking-tighter">Kombucha Twin <span class="text-amber-500 text-sm">v4.0</span></h1>
+                    <p class="text-[10px] text-gray-500 mono mt-1">模型: Arrhenius 积温积分 · 正弦波昼夜模拟 · A/V 气液动力学</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-8 mt-4 md:mt-0">
+                <div class="text-center">
+                    <p class="text-[10px] text-gray-500 uppercase mb-1">瞬时代谢系数</p>
+                    <p id="kinetic-efficiency" class="text-xl mono font-bold text-blue-400">1.00x</p>
+                </div>
+                <div class="h-10 w-[1px] bg-gray-800"></div>
+                <div id="smart-action" class="text-lg font-bold text-green-500 bg-green-900/20 px-4 py-2 rounded-lg border border-green-900/30">
+                    环境就绪，等待发酵
+                </div>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <div class="lg:col-span-3 space-y-6">
+                <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+                    <h2 class="text-xs font-black text-gray-400 uppercase mb-4 border-l-2 border-amber-500 pl-2">容器物理约束</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-[10px] text-gray-500 block mb-1">开口直径 (cm)</label>
+                            <input type="number" id="vessel-d" value="17" class="w-full bg-black border border-gray-800 rounded-lg p-2 text-white mono text-sm focus:border-amber-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-amber-500 block mb-1">实际液位高度 (cm)</label>
+                            <input type="number" id="liquid-h" value="8" class="w-full bg-black border border-amber-900/30 rounded-lg p-2 text-white mono text-sm focus:border-amber-500 outline-none">
+                        </div>
+                        <div class="p-3 bg-black/50 rounded-lg border border-gray-800/50 flex justify-between items-center">
+                            <span class="text-[10px] text-gray-500">A/V 传质比</span>
+                            <span id="av-value" class="text-lg mono font-bold text-green-400">0.125</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+                    <h2 class="text-xs font-black text-gray-400 uppercase mb-4 border-l-2 border-blue-500 pl-2">专家物料配比</h2>
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div class="col-span-2">
+                            <label class="text-[10px] text-gray-500 block mb-1">纯水质量 (g)</label>
+                            <input type="number" id="m-water" value="2000" class="w-full bg-black border border-gray-800 rounded-lg p-2 text-white mono text-sm">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-500 block mb-1">干茶 (g)</label>
+                            <input type="number" id="m-tea" value="12" class="w-full bg-black border border-gray-800 rounded-lg p-2 text-white mono text-sm">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-500 block mb-1">白糖 (g)</label>
+                            <input type="number" id="m-sugar" value="240" class="w-full bg-black border border-gray-800 rounded-lg p-2 text-white mono text-sm">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="text-[10px] text-blue-500 font-bold block mb-1">启动原液 (g)</label>
+                            <input type="number" id="m-starter" value="450" class="w-full bg-blue-900/20 border border-blue-800 rounded-lg p-2 text-blue-300 mono text-sm font-bold">
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2 text-[11px] mono bg-black/50 p-3 rounded-lg border border-gray-800/50">
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">初始 Brix</span>
+                            <span id="theory-brix" class="text-amber-400">0.00</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">茶底浓度 (氮源)</span>
+                            <span id="tea-status" class="text-green-400">0.60%</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">启动液比例</span>
+                            <span id="starter-pct" class="text-blue-400">18%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-6 space-y-6">
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 text-center">
+                        <p class="text-[10px] text-gray-500 uppercase mb-1">有效生物积温时</p>
+                        <p id="bio-hours" class="text-2xl mono font-bold text-purple-400">0.0 h</p>
+                    </div>
+                    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 text-center">
+                        <p class="text-[10px] text-gray-500 uppercase mb-1">总酸 TTA 预测</p>
+                        <p id="tta-est" class="text-2xl mono font-bold text-blue-400">0.00</p>
+                    </div>
+                    <div class="bg-gray-900 border border-red-900/30 rounded-2xl p-4 text-center">
+                        <p class="text-[10px] text-red-500 uppercase mb-1 font-bold">ABV 酒精监控</p>
+                        <p id="abv-est" class="text-3xl mono font-black text-red-500">0.00%</p>
+                    </div>
+                </div>
+
+                <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 h-[450px] relative shadow-2xl">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xs font-black text-gray-400 uppercase">发酵动力学 Roadmap</h2>
+                        <div id="chart-legend" class="flex gap-4 text-[10px] mono"></div>
+                    </div>
+                    <canvas id="roadmap-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="lg:col-span-3 bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col h-[750px]">
+                <h2 class="text-xs font-black text-gray-400 uppercase mb-4">采样日志矩阵</h2>
+                
+                <div class="flex bg-black rounded-lg p-1 mb-4">
+                    <button id="mode-point" class="flex-1 py-1 text-[10px] font-bold rounded-md bg-gray-800 text-white transition-all">单点记录</button>
+                    <button id="mode-diurnal" class="flex-1 py-1 text-[10px] font-bold rounded-md text-gray-500 transition-all">昼夜波动</button>
+                </div>
+
+                <div id="log-form" class="bg-black/40 border border-gray-800 rounded-xl p-4 mb-4 space-y-4">
+                    <div>
+                        <label class="text-[10px] text-gray-500 block mb-1 font-mono">TIMESTAMP / 记录时间</label>
+                        <input type="datetime-local" id="input-time" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-sm mono text-white focus:border-amber-500 outline-none">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3" id="temp-inputs">
+                        <div id="box-temp-main" class="col-span-2">
+                            <label class="text-[10px] text-gray-500 block mb-1 font-mono">TEMP / 温度 °C</label>
+                            <input type="number" step="0.1" id="input-temp" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-sm mono text-white text-center">
+                        </div>
+                        <div id="box-temp-min" class="hidden">
+                            <label class="text-[10px] text-blue-400 block mb-1 font-mono text-center">MIN TEMP / 最低</label>
+                            <input type="number" step="0.1" id="input-temp-min" class="w-full bg-gray-900 border border-blue-900/30 rounded-lg p-2 text-sm mono text-white text-center">
+                        </div>
+                        <div id="box-temp-max" class="hidden">
+                            <label class="text-[10px] text-red-400 block mb-1 font-mono text-center">MAX TEMP / 最高</label>
+                            <input type="number" step="0.1" id="input-temp-max" class="w-full bg-gray-900 border border-red-900/30 rounded-lg p-2 text-sm mono text-white text-center">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[10px] text-gray-500 block mb-1 font-mono text-center">BRIX / 糖度 %</label>
+                            <input type="number" step="0.1" id="input-brix" placeholder="可选" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-sm mono text-white text-center">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-500 block mb-1 font-mono text-center">PH / 酸度</label>
+                            <input type="number" step="0.1" id="input-ph" placeholder="可选" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-sm mono text-white text-center">
+                        </div>
+                    </div>
+
+                    <button id="btn-submit" class="w-full bg-amber-600 hover:bg-amber-500 text-black font-black py-2 rounded-lg transition-all text-xs uppercase tracking-widest mt-2">
+                        Append Log
+                    </button>
+                </div>
+
+                <div class="flex-grow overflow-y-auto custom-scrollbar pr-1">
+                    <div id="history-container" class="space-y-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class KombuchaEngineV4 {
+            constructor() {
+                this.logs = [];
+                this.mode = 'point'; // 'point' or 'diurnal'
+                this.initParams();
+            }
+
+            initParams() {
+                const mW = parseFloat(document.getElementById('m-water').value) || 0;
+                const mT = parseFloat(document.getElementById('m-tea').value) || 0;
+                const mS = parseFloat(document.getElementById('m-sugar').value) || 0;
+                const mSt = parseFloat(document.getElementById('m-starter').value) || 0;
+                this.totalMass = mW + mT + mS + mSt;
+                this.initBrix = this.totalMass > 0 ? (mS / this.totalMass) * 100 : 12;
+                
+                // 氮源计算
+                const teaPct = (mT / this.totalMass) * 100;
+                const teaEl = document.getElementById('tea-status');
+                teaEl.innerText = teaPct.toFixed(2) + '%';
+                teaEl.className = teaPct < 0.5 ? 'text-red-400 font-bold' : 'text-green-400';
+
+                // 物理约束
+                const h = parseFloat(document.getElementById('liquid-h').value) || 10;
+                this.avRatio = 1 / h;
+                
+                document.getElementById('theory-brix').innerText = this.initBrix.toFixed(2);
+                document.getElementById('starter-pct').innerText = ((mSt / this.totalMass) * 100).toFixed(0) + '%';
+                document.getElementById('av-value').innerText = this.avRatio.toFixed(3);
+            }
+
+            addRecord(data) {
+                const record = {
+                    id: Date.now(),
+                    timestamp: new Date(data.time),
+                    mode: data.mode,
+                    temp: data.temp,
+                    tempMin: data.tempMin,
+                    tempMax: data.tempMax,
+                    brix: data.brix !== '' ? parseFloat(data.brix) : null,
+                    ph: data.ph !== '' ? parseFloat(data.ph) : null
+                };
+                this.logs.push(record);
+                this.logs.sort((a, b) => a.timestamp - b.timestamp);
+                this.calculate();
+            }
+
+            deleteRecord(id) {
+                this.logs = this.logs.filter(l => l.id !== id);
+                this.calculate();
+            }
+
+            calculate() {
+                if (this.logs.length === 0) return this.clearUI();
+                
+                let bioHours = 0;
+                let processed = [];
+                let currentBrix = this.initBrix;
+                const startTime = this.logs[0].timestamp;
+
+                this.logs.forEach((log, i) => {
+                    // 1. 积温积分计算
+                    if (i > 0) {
+                        const prev = this.logs[i-1];
+                        const hours = (log.timestamp - prev.timestamp) / 3600000;
+                        
+                        if (log.mode === 'diurnal') {
+                            // 昼夜正弦模拟积分：对 T_min 到 T_max 之间的波段进行 10 点数值积分
+                            const tMin = log.tempMin, tMax = log.tempMax;
+                            const tAvg = (tMin + tMax) / 2;
+                            const amp = (tMax - tMin) / 2;
+                            let periodSum = 0;
+                            for (let step = 0; step < 10; step++) {
+                                const t_inst = tAvg + amp * Math.sin((step/10) * Math.PI * 2);
+                                periodSum += Math.pow(2, (t_inst - 28) / 10);
+                            }
+                            bioHours += (hours * (periodSum / 10));
+                        } else {
+                            // 线性插值积分
+                            const avgT = (log.temp + (prev.mode === 'diurnal' ? (prev.tempMin + prev.tempMax)/2 : prev.temp)) / 2;
+                            bioHours += (hours * Math.pow(2, (avgT - 28) / 10));
+                        }
+                    }
+
+                    // 2. 物质转化计算
+                    if (log.brix !== null) {
+                        const realBrix = (1.642 * log.brix) - (0.642 * this.initBrix);
+                        currentBrix = Math.max(0, realBrix);
+                    }
+
+                    const consumed = this.initBrix - currentBrix;
+                    const efficiency = Math.min(1.0, this.avRatio * 10);
+                    const abv = consumed * 0.5 * (1 - efficiency);
+                    const tta = consumed * 0.5 * efficiency;
+
+                    processed.push({
+                        log,
+                        hoursElapsed: (log.timestamp - startTime) / 3600000,
+                        realBrix: log.brix !== null ? currentBrix : null,
+                        abv, tta, ph: log.ph,
+                        displayTemp: log.mode === 'diurnal' ? `${log.tempMin}-${log.tempMax}` : `${log.temp}`
+                    });
+                });
+
+                this.render(bioHours, processed);
+            }
+
+            render(bioHours, processed) {
+                const latest = processed[processed.length - 1];
+                document.getElementById('bio-hours').innerText = bioHours.toFixed(1) + ' h';
+                document.getElementById('tta-est').innerText = latest.tta.toFixed(2);
+                
+                const abvEl = document.getElementById('abv-est');
+                abvEl.innerText = latest.abv.toFixed(2) + '%';
+                abvEl.className = latest.abv > 0.45 ? 'text-3xl mono font-black text-red-500 animate-pulse' : 'text-3xl mono font-black text-red-500';
+
+                // 指令系统
+                const action = document.getElementById('smart-action');
+                if (latest.abv > 0.5) {
+                    action.innerText = '🚨 酒精超标！立刻降温或冷藏';
+                    action.className = 'text-lg font-bold text-red-500 bg-red-900/20 px-4 py-2 rounded-lg border border-red-900/30 animate-pulse';
+                } else if (latest.tta > 0.6 && latest.tta < 0.9) {
+                    action.innerText = '⭐ 黄金风味期：建议装瓶二发';
+                    action.className = 'text-lg font-bold text-amber-400 bg-amber-900/20 px-4 py-2 rounded-lg border border-amber-900/30';
+                } else {
+                    action.innerText = '代谢追踪中... 环境稳态：' + (this.avRatio >= 0.1 ? '优' : '限氧');
+                    action.className = 'text-lg font-bold text-green-500 bg-green-900/20 px-4 py-2 rounded-lg border border-green-900/30';
+                }
+
+                // 历史记录渲染
+                const container = document.getElementById('history-container');
+                container.innerHTML = '';
+                [...processed].reverse().forEach(p => {
+                    const d = p.log.timestamp;
+                    const card = document.createElement('div');
+                    card.className = "bg-black/60 border border-gray-800 rounded-xl p-3 relative group transition-all hover:border-gray-600";
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-[10px] mono text-gray-500 uppercase">${d.getMonth()+1}/${d.getDate()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}</span>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded border border-gray-700 text-gray-400">T+${p.hoursElapsed.toFixed(1)}h</span>
+                        </div>
+                        <div class="grid grid-cols-4 gap-2 text-center">
+                            <div class="col-span-1 border-r border-gray-800">
+                                <p class="text-[8px] text-gray-600 uppercase">Temp</p>
+                                <p class="text-xs text-white mono">${p.displayTemp}°</p>
+                            </div>
+                            <div class="col-span-1 border-r border-gray-800">
+                                <p class="text-[8px] text-gray-600 uppercase">Brix</p>
+                                <p class="text-xs text-amber-500 mono">${p.log.brix || '-'}</p>
+                            </div>
+                            <div class="col-span-1 border-r border-gray-800">
+                                <p class="text-[8px] text-gray-600 uppercase">pH</p>
+                                <p class="text-xs text-blue-400 mono">${p.log.ph || '-'}</p>
+                            </div>
+                            <div class="col-span-1">
+                                <p class="text-[8px] text-gray-600 uppercase">ABV%</p>
+                                <p class="text-xs text-red-500 mono font-bold">${p.abv.toFixed(2)}</p>
+                            </div>
+                        </div>
+                        <button onclick="deleteEntry(${p.log.id})" class="absolute -top-1 -right-1 w-5 h-5 bg-red-900 text-red-200 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px]">×</button>
+                    `;
+                    container.appendChild(card);
+                });
+
+                // 图表更新
+                chart.data.labels = processed.map(p => `T+${p.hoursElapsed.toFixed(0)}h`);
+                chart.data.datasets[0].data = processed.map(p => p.realBrix);
+                chart.data.datasets[1].data = processed.map(p => p.ph);
+                chart.update();
+            }
+
+            clearUI() {
+                document.getElementById('history-container').innerHTML = '';
+                document.getElementById('bio-hours').innerText = '0.0 h';
+                document.getElementById('tta-est').innerText = '0.00';
+                document.getElementById('abv-est').innerText = '0.00%';
+                chart.data.labels = []; chart.update();
+            }
+        }
+
+        // 全局单例与 UI 绑定
+        const engine = new KombuchaEngineV4();
+        const ctx = document.getElementById('roadmap-chart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: [], datasets: [
+                { label: '真实糖度', data: [], borderColor: '#f59e0b', tension: 0.4, yAxisID: 'y', spanGaps: true, pointRadius: 3, fill: true, backgroundColor: 'rgba(245, 158, 11, 0.05)' },
+                { label: 'pH', data: [], borderColor: '#3b82f6', borderDash: [5, 5], tension: 0.4, yAxisID: 'y1', spanGaps: true, pointRadius: 3 }
+            ]},
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#4b5563', font: { size: 9, family: 'monospace' } } },
+                    y: { position: 'left', min: 0, max: 14, grid: { color: '#1f2937' }, ticks: { color: '#f59e0b' } },
+                    y1: { position: 'right', min: 2.5, max: 5, grid: { display: false }, ticks: { color: '#3b82f6' } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // 模式切换交互
+        const btnPoint = document.getElementById('mode-point');
+        const btnDiurnal = document.getElementById('mode-diurnal');
+        
+        btnPoint.onclick = () => {
+            engine.mode = 'point';
+            btnPoint.className = "flex-1 py-1 text-[10px] font-bold rounded-md bg-gray-800 text-white transition-all";
+            btnDiurnal.className = "flex-1 py-1 text-[10px] font-bold rounded-md text-gray-500 transition-all";
+            document.getElementById('box-temp-main').classList.remove('hidden');
+            document.getElementById('box-temp-min').classList.add('hidden');
+            document.getElementById('box-temp-max').classList.add('hidden');
+        };
+
+        btnDiurnal.onclick = () => {
+            engine.mode = 'diurnal';
+            btnDiurnal.className = "flex-1 py-1 text-[10px] font-bold rounded-md bg-gray-800 text-white transition-all";
+            btnPoint.className = "flex-1 py-1 text-[10px] font-bold rounded-md text-gray-500 transition-all";
+            document.getElementById('box-temp-main').classList.add('hidden');
+            document.getElementById('box-temp-min').classList.remove('hidden');
+            document.getElementById('box-temp-max').classList.remove('hidden');
+        };
+
+        // 提交逻辑
+        document.getElementById('btn-submit').onclick = () => {
+            const data = {
+                time: document.getElementById('input-time').value,
+                mode: engine.mode,
+                temp: parseFloat(document.getElementById('input-temp').value),
+                tempMin: parseFloat(document.getElementById('input-temp-min').value),
+                tempMax: parseFloat(document.getElementById('input-temp-max').value),
+                brix: document.getElementById('input-brix').value,
+                ph: document.getElementById('input-ph').value
+            };
+            if (!data.time || (engine.mode === 'point' && isNaN(data.temp)) || (engine.mode === 'diurnal' && (isNaN(data.tempMin) || isNaN(data.tempMax)))) {
+                alert("必填项未录入（时间与温度）"); return;
+            }
+            engine.initParams();
+            engine.addRecord(data);
+            showToast();
+        };
+
+        function deleteEntry(id) { engine.deleteRecord(id); }
+        function showToast() {
+            const t = document.getElementById('toast');
+            t.classList.replace('toast-exit', 'toast-enter');
+            setTimeout(() => t.classList.replace('toast-enter', 'toast-exit'), 2000);
+        }
+
+        // 初始化
+        window.onload = () => {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('input-time').value = now.toISOString().slice(0, 16);
+            
+            // 物料参数监听
+            ['vessel-d', 'liquid-h', 'm-water', 'm-tea', 'm-sugar', 'm-starter'].forEach(id => {
+                document.getElementById(id).addEventListener('input', () => { engine.initParams(); engine.calculate(); });
+            });
+
+            // 预设两条历史 (北京春末模拟：昼夜温差 vs 单点空调)
+            const d1 = new Date(now - 172800000); // 48h ago
+            engine.addRecord({ time: d1.toISOString().slice(0,16), mode: 'diurnal', tempMin: 22, tempMax: 27, brix: '12', ph: '4.5' });
+            engine.addRecord({ time: now.toISOString().slice(0,16), mode: 'point', temp: 25.5, brix: '10.5', ph: '3.9' });
+            
+            engine.initParams();
+        };
+    </script>
+</body>
+</html>
