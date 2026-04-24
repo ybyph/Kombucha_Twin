@@ -198,7 +198,44 @@ function initChart() {
     });
 }
 
+function autoCalculate() {
+    const factor = document.getElementById('limiting-factor').value;
+    const baseAmount = parseFloat(document.getElementById('base-amount').value);
+    
+    if (isNaN(baseAmount) || baseAmount <= 0) {
+        alert("请输入有效的基准克数");
+        return;
+    }
+    
+    let starter, water, sugar, tea;
+    
+    if (factor === 'starter') {
+        starter = baseAmount;
+        water = Math.round(starter * 7);
+    } else {
+        water = baseAmount;
+        starter = Math.round(water / 7);
+    }
+    
+    sugar = Math.round(water * 0.1);
+    tea = Math.round(water * 0.01);
+    
+    document.getElementById('m-starter').value = starter;
+    document.getElementById('m-water').value = water;
+    document.getElementById('m-sugar').value = sugar;
+    document.getElementById('m-tea').value = tea;
+    
+    const params = engine.initParams();
+    updateUI(params);
+    const result = engine.calculate();
+    renderResults(result);
+    saveToStorage();
+    showToast();
+}
+
 function initEventListeners() {
+    document.getElementById('btn-auto-calc').onclick = autoCalculate;
+    
     const btnPoint = document.getElementById('mode-point');
     const btnDiurnal = document.getElementById('mode-diurnal');
     
