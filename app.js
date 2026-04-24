@@ -78,26 +78,32 @@ function updateTimeDisplay(result) {
     const firstLog = engine.logs[0];
     const now = new Date();
     const elapsedMs = now - firstLog.timestamp;
-    const elapsedHours = elapsedMs / 3600000;
     
-    if (elapsedHours >= 24) {
-        const days = Math.floor(elapsedHours / 24);
-        const hours = Math.floor(elapsedHours % 24);
-        document.getElementById('elapsed-time').innerText = `第 ${days} 天 ${hours} 小时`;
+    const days = Math.floor(elapsedMs / 86400000);
+    const hours = Math.floor((elapsedMs % 86400000) / 3600000);
+    const minutes = Math.floor((elapsedMs % 3600000) / 60000);
+    
+    if (days > 0) {
+        document.getElementById('elapsed-time').innerText = `第 ${days} 天 ${hours} 小时 ${minutes} 分钟`;
+    } else if (hours > 0) {
+        document.getElementById('elapsed-time').innerText = `${hours} 小时 ${minutes} 分钟`;
     } else {
-        document.getElementById('elapsed-time').innerText = `${elapsedHours.toFixed(1)} 小时`;
+        document.getElementById('elapsed-time').innerText = `${minutes} 分钟`;
     }
     
     const latest = result.processed[result.processed.length - 1];
     document.getElementById('current-brix').innerText = latest.realBrix.toFixed(1);
     
     if (result.remainingHours !== undefined && result.remainingHours > 0) {
-        if (result.remainingHours >= 24) {
-            const days = Math.floor(result.remainingHours / 24);
-            const hours = Math.floor(result.remainingHours % 24);
-            document.getElementById('remaining-time').innerText = `${days}天${hours}h`;
+        const remDays = Math.floor(result.remainingHours / 24);
+        const remHours = Math.floor(result.remainingHours % 24);
+        const remMins = Math.floor((result.remainingHours % 1) * 60);
+        if (remDays > 0) {
+            document.getElementById('remaining-time').innerText = `${remDays}天${remHours}h${remMins}m`;
+        } else if (remHours > 0) {
+            document.getElementById('remaining-time').innerText = `${remHours}h${remMins}m`;
         } else {
-            document.getElementById('remaining-time').innerText = `${result.remainingHours.toFixed(1)}h`;
+            document.getElementById('remaining-time').innerText = `${remMins}m`;
         }
     } else {
         document.getElementById('remaining-time').innerText = '-';
@@ -168,6 +174,7 @@ function renderResults(result) {
     
     let predictLabels = [...labels];
     let predictData = [...actualData];
+    let maxTime = result.processed.length > 0 ? result.processed[result.processed.length - 1].hoursElapsed : 0;
     
     if (result.predictions && result.predictions.length > 0) {
         const lastHour = result.processed[result.processed.length - 1].hoursElapsed;
@@ -175,13 +182,63 @@ function renderResults(result) {
             const predHour = lastHour + (i + 1) * 2;
             predictLabels.push(`T+${predHour.toFixed(0)}h`);
             predictData.push(pred.brix);
+            maxTime = Math.max(maxTime, predHour);
         });
     }
+    
+    if (result.remainingHours !== undefined && result.remainingHours > 0) {
+        const lastHour = result.processed.length > 0 ? result.processed[result.processed.length - 1].hoursElapsed : 0;
+        const totalTime = lastHour + result.remainingHours;
+        const extendedMax = Math.ceil(totalTime / 12) * 12 + 24;
+        maxTime = Math.max(maxTime, extendedMax);
+    }
+    
+    const step = maxTime > 48 ? 24 : 12;
+    const numSteps = Math.ceil(maxTime / step);
+    
+    const axisLabels = [];
+    const alignedActualData = [];
+    const alignedPhData = [];
+    const alignedPredictData = [];
+    
+    for (let i = 0; i <= numSteps; i++) {
+        const hour = i * step;
+        axisLabels.push(`T+${hour}h`);
+        
+        const actualIndex = labels.indexOf(`T+${hour}h`);
+        if (actualIndex >= 0) {
+            alignedActualData.push(actualData[actualIndex]);
+            alignedPhData.push(phData[actualIndex]);
+        } else {
+            alignedActualData.push(null);
+            alignedPhData.push(null);
+        }
+        
+        const predictIndex = predictLabels.indexOf(`T+${hour}h`);
+        if (predictIndex >= 0) {
+            alignedPredictData.push(predictData[predictIndex]);
+        } else {
+            let interpolatedBrix = null;
+            if (predictLabels.length > 0) {
+                for (let j = 0; j < predictLabels.length - 1; j++) {
+                    const currHour = parseFloat(predictLabels[j].replace('T+', '').replace('h', ''));
+                    const nextHour = parseFloat(predictLabels[j + 1].replace('T+', '').replace('h', ''));
+                    if (hour >= currHour && hour <= nextHour) {
+                        const ratio = (hour - currHour) / (nextHour - currHour);
+                        interpolatedBrix = predictData[j] + (predictData[j + 1] - predictData[j]) * ratio;
+                        break;
+                    }
+                }
+            }
+            alignedPredictData.push(interpolatedBrix);
+        }
+    }
 
-    chart.data.labels = predictLabels;
-    chart.data.datasets[0].data = actualData.concat(new Array(predictLabels.length - actualData.length).fill(null));
-    chart.data.datasets[1].data = phData.concat(new Array(predictLabels.length - phData.length).fill(null));
-    chart.data.datasets[2].data = predictData;
+    chart.data.labels = axisLabels;
+    chart.data.datasets[0].data = alignedActualData;
+    chart.data.datasets[1].data = alignedPhData;
+    chart.data.datasets[2].data = alignedPredictData;
+    chart.options.scales.x.max = undefined;
     chart.update();
 }
 
@@ -470,4 +527,11 @@ window.onload = () => {
     renderResults(result);
     
     updateUIGuide();
+    
+    setInterval(() => {
+        if (engine.logs.length > 0) {
+            const result = engine.calculate();
+            updateTimeDisplay(result);
+        }
+    }, 60000);
 };

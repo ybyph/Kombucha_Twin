@@ -15,6 +15,25 @@
     <title>Kombucha Twin V4.0 - Climate Adaptive</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        (function() {
+            const stored = localStorage.getItem('kombucha-twin-data');
+            if (stored) {
+                try {
+                    const data = JSON.parse(stored);
+                    if (data.logs && data.logs.some(log => {
+                        const ts = new Date(log.timestamp);
+                        return ts.getFullYear() === 2026 && ts.getMonth() === 3 && ts.getDate() === 24;
+                    })) {
+                        localStorage.clear();
+                        console.log('Cleaned legacy data from 2026-04-24');
+                    }
+                } catch (e) {
+                    localStorage.clear();
+                }
+            }
+        })();
+    </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #050505; }
@@ -159,7 +178,7 @@
                     </div>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div class="text-center">
-                            <p class="text-[9px] text-gray-500 uppercase mb-1">发酵时长</p>
+                            <p class="text-[9px] text-gray-500 uppercase mb-1">当前时长</p>
                             <p id="elapsed-time" class="text-xl mono font-bold text-white">等待首条录入...</p>
                         </div>
                         <div class="text-center">
