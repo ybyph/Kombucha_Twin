@@ -67,6 +67,43 @@ function updateUI(params) {
     document.getElementById('av-value').innerText = params.avValue;
 }
 
+function updateTimeDisplay(result) {
+    if (engine.logs.length === 0) {
+        document.getElementById('elapsed-time').innerText = '等待首条录入...';
+        document.getElementById('remaining-time').innerText = '-';
+        document.getElementById('current-brix').innerText = '--';
+        return;
+    }
+    
+    const firstLog = engine.logs[0];
+    const now = new Date();
+    const elapsedMs = now - firstLog.timestamp;
+    const elapsedHours = elapsedMs / 3600000;
+    
+    if (elapsedHours >= 24) {
+        const days = Math.floor(elapsedHours / 24);
+        const hours = Math.floor(elapsedHours % 24);
+        document.getElementById('elapsed-time').innerText = `第 ${days} 天 ${hours} 小时`;
+    } else {
+        document.getElementById('elapsed-time').innerText = `${elapsedHours.toFixed(1)} 小时`;
+    }
+    
+    const latest = result.processed[result.processed.length - 1];
+    document.getElementById('current-brix').innerText = latest.realBrix.toFixed(1);
+    
+    if (result.remainingHours !== undefined && result.remainingHours > 0) {
+        if (result.remainingHours >= 24) {
+            const days = Math.floor(result.remainingHours / 24);
+            const hours = Math.floor(result.remainingHours % 24);
+            document.getElementById('remaining-time').innerText = `${days}天${hours}h`;
+        } else {
+            document.getElementById('remaining-time').innerText = `${result.remainingHours.toFixed(1)}h`;
+        }
+    } else {
+        document.getElementById('remaining-time').innerText = '-';
+    }
+}
+
 function renderResults(result) {
     document.getElementById('bio-hours').innerText = result.bioHours.toFixed(1) + ' h';
     document.getElementById('tta-est').innerText = result.tta.toFixed(2);
@@ -79,6 +116,8 @@ function renderResults(result) {
     action.innerText = result.actionText;
     action.className = result.actionClass;
 
+    updateTimeDisplay(result);
+
     const container = document.getElementById('history-container');
     container.innerHTML = '';
     
@@ -86,6 +125,7 @@ function renderResults(result) {
         chart.data.labels = [];
         chart.data.datasets[0].data = [];
         chart.data.datasets[1].data = [];
+        chart.data.datasets[2].data = [];
         chart.update();
         return;
     }
@@ -122,9 +162,26 @@ function renderResults(result) {
         container.appendChild(card);
     });
 
-    chart.data.labels = result.processed.map(p => `T+${p.hoursElapsed.toFixed(0)}h`);
-    chart.data.datasets[0].data = result.processed.map(p => p.realBrix);
-    chart.data.datasets[1].data = result.processed.map(p => p.ph);
+    const labels = result.processed.map(p => `T+${p.hoursElapsed.toFixed(0)}h`);
+    const actualData = result.processed.map(p => p.realBrix);
+    const phData = result.processed.map(p => p.ph);
+    
+    let predictLabels = [...labels];
+    let predictData = [...actualData];
+    
+    if (result.predictions && result.predictions.length > 0) {
+        const lastHour = result.processed[result.processed.length - 1].hoursElapsed;
+        result.predictions.forEach((pred, i) => {
+            const predHour = lastHour + (i + 1) * 2;
+            predictLabels.push(`T+${predHour.toFixed(0)}h`);
+            predictData.push(pred.brix);
+        });
+    }
+
+    chart.data.labels = predictLabels;
+    chart.data.datasets[0].data = actualData.concat(new Array(predictLabels.length - actualData.length).fill(null));
+    chart.data.datasets[1].data = phData.concat(new Array(predictLabels.length - phData.length).fill(null));
+    chart.data.datasets[2].data = predictData;
     chart.update();
 }
 
@@ -132,10 +189,12 @@ function deleteEntry(id) {
     const result = engine.deleteRecord(id);
     renderResults(result);
     saveToStorage();
+    updateUIGuide();
 }
 
-function showToast() {
+function showToast(msg = '记录已保存') {
     const t = document.getElementById('toast');
+    document.getElementById('toast-msg').innerText = msg;
     t.classList.replace('toast-exit', 'toast-enter');
     setTimeout(() => t.classList.replace('toast-enter', 'toast-exit'), 2000);
 }
@@ -148,13 +207,14 @@ function initChart() {
             labels: [], 
             datasets: [
                 { 
-                    label: '真实糖度', 
+                    label: '实测糖度', 
                     data: [], 
                     borderColor: '#f59e0b', 
                     tension: 0.4, 
                     yAxisID: 'y', 
                     spanGaps: true, 
-                    pointRadius: 3, 
+                    pointRadius: 4,
+                    pointBackgroundColor: '#f59e0b',
                     fill: true, 
                     backgroundColor: 'rgba(245, 158, 11, 0.05)' 
                 },
@@ -166,7 +226,20 @@ function initChart() {
                     tension: 0.4, 
                     yAxisID: 'y1', 
                     spanGaps: true, 
-                    pointRadius: 3 
+                    pointRadius: 3,
+                    pointBackgroundColor: '#3b82f6'
+                },
+                { 
+                    label: '预测糖度', 
+                    data: [], 
+                    borderColor: '#10b981', 
+                    borderDash: [10, 5], 
+                    tension: 0.6, 
+                    yAxisID: 'y', 
+                    spanGaps: true, 
+                    pointRadius: 0,
+                    fill: false,
+                    backgroundColor: 'transparent'
                 }
             ]
         },
@@ -193,7 +266,19 @@ function initChart() {
                     ticks: { color: '#3b82f6' } 
                 }
             },
-            plugins: { legend: { display: false } }
+            plugins: { 
+                legend: { 
+                    display: true,
+                    position: 'top',
+                    align: 'end',
+                    labels: {
+                        color: '#6b7280',
+                        font: { size: 10, family: 'monospace' },
+                        usePointStyle: true,
+                        padding: 20
+                    }
+                }
+            }
         }
     });
 }
@@ -230,11 +315,85 @@ function autoCalculate() {
     const result = engine.calculate();
     renderResults(result);
     saveToStorage();
-    showToast();
+    showToast('配方已应用');
+}
+
+function startNewBatch() {
+    if (confirm('确定要开始新批次吗？这将清空所有历史记录和配置。')) {
+        localStorage.clear();
+        engine.logs = [];
+        engine.mode = 'point';
+        
+        document.getElementById('vessel-d').value = '0';
+        document.getElementById('liquid-h').value = '0';
+        document.getElementById('m-water').value = '0';
+        document.getElementById('m-tea').value = '0';
+        document.getElementById('m-sugar').value = '0';
+        document.getElementById('m-starter').value = '0';
+        document.getElementById('base-amount').value = '0';
+        
+        const params = engine.initParams();
+        updateUI(params);
+        const result = engine.calculate();
+        renderResults(result);
+        
+        document.getElementById('btn-submit').disabled = false;
+        
+        showToast('新批次已开始');
+        updateUIGuide();
+    }
+}
+
+function toggleRecipePanel() {
+    const content = document.getElementById('recipe-content');
+    const toggleBtn = document.getElementById('toggle-recipe');
+    
+    if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        toggleBtn.innerText = '折叠';
+    } else {
+        content.classList.add('hidden');
+        toggleBtn.innerText = '展开';
+    }
+}
+
+function updateUIGuide() {
+    const leftPanel = document.getElementById('left-panel');
+    const recipePanel = document.getElementById('recipe-panel');
+    const hasLogs = engine.logs.length > 0;
+    
+    if (hasLogs) {
+        leftPanel.classList.add('lg:col-span-2');
+        leftPanel.classList.remove('lg:col-span-3');
+        
+        document.querySelector('.lg\\:col-span-6').classList.add('lg:col-span-7');
+        document.querySelector('.lg\\:col-span-6').classList.remove('lg:col-span-6');
+        
+        document.querySelector('.lg\\:col-span-3').classList.add('lg:col-span-3');
+        
+        recipePanel.classList.add('border-amber-900/20');
+        recipePanel.classList.remove('border-gray-800');
+        
+        toggleRecipePanel();
+    } else {
+        leftPanel.classList.remove('lg:col-span-2');
+        leftPanel.classList.add('lg:col-span-3');
+        
+        document.querySelector('.lg\\:col-span-6, .lg\\:col-span-7').classList.remove('lg:col-span-7');
+        document.querySelector('.lg\\:col-span-6, .lg\\:col-span-7').classList.add('lg:col-span-6');
+        
+        recipePanel.classList.remove('border-amber-900/20');
+        recipePanel.classList.add('border-gray-800');
+        
+        document.getElementById('recipe-content').classList.remove('hidden');
+        document.getElementById('toggle-recipe').innerText = '折叠';
+    }
 }
 
 function initEventListeners() {
     document.getElementById('btn-auto-calc').onclick = autoCalculate;
+    document.getElementById('btn-new-batch').onclick = startNewBatch;
+    document.getElementById('toggle-recipe').onclick = toggleRecipePanel;
     
     const btnPoint = document.getElementById('mode-point');
     const btnDiurnal = document.getElementById('mode-diurnal');
@@ -276,6 +435,7 @@ function initEventListeners() {
         renderResults(result);
         saveToStorage();
         showToast();
+        updateUIGuide();
     };
 
     ['vessel-d', 'liquid-h', 'm-water', 'm-tea', 'm-sugar', 'm-starter'].forEach(id => {
@@ -289,26 +449,6 @@ function initEventListeners() {
     });
 }
 
-function initPresetData() {
-    const now = new Date();
-    const d1 = new Date(now - 172800000);
-    engine.addRecord({ 
-        time: d1.toISOString().slice(0,16), 
-        mode: 'diurnal', 
-        tempMin: 22, 
-        tempMax: 27, 
-        brix: '12', 
-        ph: '4.5' 
-    });
-    engine.addRecord({ 
-        time: now.toISOString().slice(0,16), 
-        mode: 'point', 
-        temp: 25.5, 
-        brix: '10.5', 
-        ph: '3.9' 
-    });
-}
-
 window.onload = () => {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -317,32 +457,17 @@ window.onload = () => {
     initChart();
     initEventListeners();
     
-    const loaded = loadFromStorage();
+    loadFromStorage();
     
     const params = engine.initParams();
     updateUI(params);
     
-    if (!loaded) {
-        initPresetData();
-    } else {
-        const btnPoint = document.getElementById('mode-point');
-        const btnDiurnal = document.getElementById('mode-diurnal');
-        
-        if (engine.mode === 'point') {
-            btnPoint.className = "flex-1 py-1 text-[10px] font-bold rounded-md bg-gray-800 text-white transition-all";
-            btnDiurnal.className = "flex-1 py-1 text-[10px] font-bold rounded-md text-gray-500 transition-all";
-            document.getElementById('box-temp-main').classList.remove('hidden');
-            document.getElementById('box-temp-min').classList.add('hidden');
-            document.getElementById('box-temp-max').classList.add('hidden');
-        } else {
-            btnDiurnal.className = "flex-1 py-1 text-[10px] font-bold rounded-md bg-gray-800 text-white transition-all";
-            btnPoint.className = "flex-1 py-1 text-[10px] font-bold rounded-md text-gray-500 transition-all";
-            document.getElementById('box-temp-main').classList.add('hidden');
-            document.getElementById('box-temp-min').classList.remove('hidden');
-            document.getElementById('box-temp-max').classList.remove('hidden');
-        }
+    if (engine.mode === 'diurnal') {
+        document.getElementById('btn-diurnal').click();
     }
     
     const result = engine.calculate();
     renderResults(result);
+    
+    updateUIGuide();
 };

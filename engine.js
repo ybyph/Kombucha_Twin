@@ -137,14 +137,61 @@ class KombuchaEngineV4 {
             abvClass = 'text-3xl mono font-black text-red-500';
         }
 
+        const predictions = this.generatePredictions(latest, bioHours);
+        const remainingHours = this.calculateRemainingTime(latest, bioHours);
+
         return {
             bioHours,
             tta: latest.tta,
             abv: latest.abv,
             processed,
+            predictions,
+            remainingHours,
             actionText,
             actionClass,
             abvClass
         };
+    }
+
+    generatePredictions(latest, currentBioHours) {
+        const predictions = [];
+        const targetBrix = 4;
+        const currentBrix = latest.realBrix;
+        
+        if (currentBrix <= targetBrix) return predictions;
+        
+        const efficiency = Math.min(1.0, this.avRatio * 10);
+        const decayRate = 0.05 * efficiency;
+        
+        let predBrix = currentBrix;
+        let predBioHours = currentBioHours;
+        
+        for (let i = 0; i < 12; i++) {
+            predBioHours += 2;
+            predBrix = Math.max(targetBrix, predBrix - decayRate * 2);
+            predictions.push({
+                hours: predBioHours,
+                brix: predBrix
+            });
+            
+            if (predBrix <= targetBrix) break;
+        }
+        
+        return predictions;
+    }
+
+    calculateRemainingTime(latest, currentBioHours) {
+        const targetBrix = 4;
+        const currentBrix = latest.realBrix;
+        
+        if (currentBrix <= targetBrix) return 0;
+        
+        const efficiency = Math.min(1.0, this.avRatio * 10);
+        const decayRate = 0.05 * efficiency;
+        
+        const brixToDrop = currentBrix - targetBrix;
+        const bioHoursNeeded = brixToDrop / decayRate;
+        
+        return bioHoursNeeded;
     }
 }
