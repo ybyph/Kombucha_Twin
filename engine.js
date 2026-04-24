@@ -70,6 +70,8 @@ class KombuchaEngineV4 {
         let bioHours = 0;
         let processed = [];
         let currentBrix = this.initBrix;
+        let lastRecordedBrix = this.initBrix;
+        let lastBioHoursAtRecord = 0;
         const startTime = this.logs[0].timestamp;
 
         this.logs.forEach((log, i) => {
@@ -96,6 +98,12 @@ class KombuchaEngineV4 {
             if (log.brix !== null) {
                 const realBrix = (1.642 * log.brix) - (0.642 * this.initBrix);
                 currentBrix = Math.max(0, realBrix);
+                lastRecordedBrix = currentBrix;
+                lastBioHoursAtRecord = bioHours;
+            } else {
+                const bioDelta = bioHours - lastBioHoursAtRecord;
+                const brixDecay = bioDelta * 0.05;
+                currentBrix = Math.max(0, lastRecordedBrix - brixDecay);
             }
 
             const consumed = this.initBrix - currentBrix;
@@ -106,7 +114,7 @@ class KombuchaEngineV4 {
             processed.push({
                 log,
                 hoursElapsed: (log.timestamp - startTime) / 3600000,
-                realBrix: log.brix !== null ? currentBrix : null,
+                realBrix: currentBrix,
                 abv, tta, ph: log.ph,
                 displayTemp: log.mode === 'diurnal' ? `${log.tempMin}-${log.tempMax}` : `${log.temp}`
             });
