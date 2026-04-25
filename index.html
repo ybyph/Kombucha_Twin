@@ -74,6 +74,19 @@
             </div>
         </header>
 
+        <div id="f1-prediction-bar" class="bg-gradient-to-r from-amber-900/30 to-orange-900/30 border border-amber-800/30 rounded-xl p-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-3 h-3 rounded-full bg-amber-500 animate-pulse"></div>
+                <div>
+                    <p class="text-xs text-amber-400 font-bold">F1 黄金装瓶预测</p>
+                    <p id="f1-prediction-text" class="text-sm mono text-white">等待首条数据录入...</p>
+                </div>
+            </div>
+            <button id="f1-add-calendar" class="hidden px-3 py-1.5 bg-amber-600/20 text-amber-400 text-xs font-bold rounded-lg border border-amber-600/30 hover:bg-amber-600/30 transition-all">
+                添加到日历
+            </button>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             
             <div class="lg:col-span-3 space-y-6" id="left-panel">
@@ -455,10 +468,120 @@
                         <p id="f2-time-remaining" class="text-xl mono font-bold text-blue-400">等待数据...</p>
                     </div>
                     <p id="f2-chill-hint" class="text-[10px] md:text-xs mono text-blue-300 text-center mt-3 pt-3 border-t border-gray-800"></p>
+                    
+                    <div class="mt-4 pt-4 border-t border-gray-800">
+                        <button id="f2-start-chill" class="w-full py-2.5 bg-blue-600/20 text-blue-400 text-xs font-bold rounded-lg border border-blue-600/30 hover:bg-blue-600/30 transition-all">
+                            开始冷藏
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="f2-chill-mode" class="f2-card bg-blue-900/20 border-blue-700/30 hidden">
+                    <div class="text-center">
+                        <div class="w-4 h-4 rounded-full bg-blue-400 animate-pulse mx-auto mb-3"></div>
+                        <p id="f2-chill-status" class="text-sm font-bold text-blue-400">气泡锁定中，请勿开瓶</p>
+                        <p id="f2-chill-timer" class="text-2xl mono font-black text-blue-300 mt-2">24:00:00</p>
+                        <p class="text-[10px] text-blue-300/70 mt-2">正在利用亨利定律锁定气泡...</p>
+                    </div>
+                    <button id="f2-add-chill-reminder" class="w-full mt-4 py-2 bg-blue-600/30 text-blue-300 text-xs font-bold rounded-lg border border-blue-600/40 hover:bg-blue-600/40 transition-all">
+                        预约开瓶提醒
+                    </button>
                 </div>
             </div>
         </div>
     </div>
+    
+    <script>
+        let chillModeActive = false;
+        let chillTimerInterval = null;
+        let chillEndTime = null;
+        
+        function startChillMode() {
+            if (chillModeActive) return;
+            
+            if (!confirm('已移入冰箱？确认后将进入冷藏锁定模式，启动 24 小时倒计时。')) {
+                return;
+            }
+            
+            chillModeActive = true;
+            chillEndTime = Date.now() + 24 * 60 * 60 * 1000;
+            
+            document.getElementById('f2-chill-mode').classList.remove('hidden');
+            document.getElementById('f2-start-chill').classList.add('hidden');
+            
+            updateChillTimer();
+            chillTimerInterval = setInterval(updateChillTimer, 1000);
+            
+            localStorage.setItem('chillMode', JSON.stringify({ active: true, endTime: chillEndTime }));
+        }
+        
+        function updateChillTimer() {
+            if (!chillEndTime) return;
+            
+            const remaining = chillEndTime - Date.now();
+            if (remaining <= 0) {
+                clearInterval(chillTimerInterval);
+                document.getElementById('f2-chill-status').textContent = '最佳赏味期已达标';
+                document.getElementById('f2-chill-timer').textContent = '完成!';
+                localStorage.removeItem('chillMode');
+                return;
+            }
+            
+            const hours = Math.floor(remaining / 3600000);
+            const minutes = Math.floor((remaining % 3600000) / 60000);
+            const seconds = Math.floor((remaining % 60000) / 1000);
+            
+            document.getElementById('f2-chill-timer').textContent = 
+                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('f2-start-chill').addEventListener('click', startChillMode);
+            
+            document.getElementById('f2-add-chill-reminder').addEventListener('click', () => {
+                const endTime = new Date(chillEndTime);
+                const event = {
+                    title: '康普茶开瓶提醒',
+                    start: endTime.toISOString(),
+                    duration: { minutes: 30 }
+                };
+                
+                if (navigator.calendar && navigator.calendar.createEvent) {
+                    navigator.calendar.createEvent(event);
+                } else if ('webkitRequestFileSystem' in window) {
+                    const url = `data:text/calendar;charset=utf-8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ASUMMARY:${encodeURIComponent(event.title)}%0ADTSTART:${endTime.toISOString().replace(/-/g, '').replace(/:/g, '').substring(0, 15)}%0ADURATION:PT30M%0AEND:VEVENT%0AEND:VCALENDAR`;
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'kombucha-reminder.ics';
+                    a.click();
+                }
+            });
+            
+            const savedChill = localStorage.getItem('chillMode');
+            if (savedChill) {
+                try {
+                    const data = JSON.parse(savedChill);
+                    if (data.active && data.endTime) {
+                        chillModeActive = true;
+                        chillEndTime = data.endTime;
+                        
+                        document.getElementById('f2-chill-mode').classList.remove('hidden');
+                        document.getElementById('f2-start-chill').classList.add('hidden');
+                        
+                        if (chillEndTime > Date.now()) {
+                            updateChillTimer();
+                            chillTimerInterval = setInterval(updateChillTimer, 1000);
+                        } else {
+                            document.getElementById('f2-chill-status').textContent = '最佳赏味期已达标';
+                            document.getElementById('f2-chill-timer').textContent = '完成!';
+                        }
+                    }
+                } catch (e) {
+                    localStorage.removeItem('chillMode');
+                }
+            }
+        });
+    </script>
     <script src="engine.js"></script>
     <script src="app.js"></script>
     <script>

@@ -109,11 +109,89 @@ function updateUI(params) {
     document.getElementById('av-value').innerText = params.avValue;
 }
 
+function calculateF1BottlingPrediction() {
+    if (engine.logs.length < 3) {
+        document.getElementById('f1-prediction-text').innerText = '等待更多数据录入...';
+        document.getElementById('f1-add-calendar').classList.add('hidden');
+        return;
+    }
+    
+    const lastThreeLogs = engine.logs.slice(-3);
+    let totalBrixDrop = 0;
+    let totalHours = 0;
+    
+    for (let i = 1; i < lastThreeLogs.length; i++) {
+        const prevBrix = lastThreeLogs[i - 1].brix || engine.calculate().processed[i - 1]?.realBrix || 0;
+        const currBrix = lastThreeLogs[i].brix || engine.calculate().processed[i]?.realBrix || 0;
+        totalBrixDrop += Math.max(0, prevBrix - currBrix);
+        
+        const prevTime = lastThreeLogs[i - 1].timestamp;
+        const currTime = lastThreeLogs[i].timestamp;
+        totalHours += (currTime - prevTime) / 3600000;
+    }
+    
+    if (totalHours === 0 || totalBrixDrop === 0) {
+        document.getElementById('f1-prediction-text').innerText = '等待更多数据录入...';
+        document.getElementById('f1-add-calendar').classList.add('hidden');
+        return;
+    }
+    
+    const brixDropRate = totalBrixDrop / totalHours;
+    const lastLog = engine.logs[engine.logs.length - 1];
+    const currentBrix = lastLog.brix || engine.calculate().processed[engine.calculate().processed.length - 1]?.realBrix || 5.0;
+    const targetBrix = 3.2;
+    const brixToDrop = Math.max(0, currentBrix - targetBrix);
+    
+    if (brixToDrop <= 0) {
+        document.getElementById('f1-prediction-text').innerText = '已达黄金风味点，建议立即装瓶!';
+        document.getElementById('f1-add-calendar').classList.remove('hidden');
+        return;
+    }
+    
+    const hoursToTarget = brixToDrop / brixDropRate;
+    const days = Math.floor(hoursToTarget / 24);
+    const hours = Math.floor(hoursToTarget % 24);
+    const minutes = Math.floor((hoursToTarget % 1) * 60);
+    
+    let predictionText = '预计黄金装瓶窗口：';
+    if (days > 0) {
+        predictionText += `${days} 天 `;
+    }
+    if (hours > 0) {
+        predictionText += `${hours} 小时 `;
+    }
+    predictionText += `${minutes} 分钟后`;
+    
+    document.getElementById('f1-prediction-text').innerText = predictionText;
+    document.getElementById('f1-add-calendar').classList.remove('hidden');
+    
+    document.getElementById('f1-add-calendar').onclick = function() {
+        const targetTime = new Date(Date.now() + hoursToTarget * 3600000);
+        const event = {
+            title: '康普茶黄金装瓶提醒',
+            start: targetTime.toISOString(),
+            duration: { hours: 2 }
+        };
+        
+        if (navigator.calendar && navigator.calendar.createEvent) {
+            navigator.calendar.createEvent(event);
+        } else {
+            const url = `data:text/calendar;charset=utf-8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ASUMMARY:${encodeURIComponent(event.title)}%0ADTSTART:${targetTime.toISOString().replace(/-/g, '').replace(/:/g, '').substring(0, 15)}%0ADURATION:PT2H%0AEND:VEVENT%0AEND:VCALENDAR`;
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'kombucha-bottling.ics';
+            a.click();
+        }
+    };
+}
+
 function updateTimeDisplay(result) {
     if (engine.logs.length === 0) {
         document.getElementById('elapsed-time').innerText = '等待首条录入...';
         document.getElementById('remaining-time').innerText = '-';
         document.getElementById('current-brix').innerText = '--';
+        document.getElementById('f1-prediction-text').innerText = '等待首条数据录入...';
+        document.getElementById('f1-add-calendar').classList.add('hidden');
         return;
     }
     
@@ -282,6 +360,8 @@ function renderResults(result) {
     chart.data.datasets[2].data = alignedPredictData;
     chart.options.scales.x.max = undefined;
     chart.update();
+    
+    calculateF1BottlingPrediction();
 }
 
 function deleteEntry(id) {
@@ -448,7 +528,7 @@ function calculateF2Pressure() {
         }
     }
     
-    const residualSugar = latestBrix * 0.01 * 0.1 * liquidWeight;
+    const residualSugar = latestBrix * 0.01 * 0.2 * liquidWeight;
     const fruitSugar = fruitWeight * (fruitSugarRatio / 100);
     const totalSugar = residualSugar + fruitSugar + extraSugar;
     
@@ -463,23 +543,23 @@ function calculateF2Pressure() {
     let widthPercent = Math.min(co2Volumes / 5 * 100, 100);
     gaugeEl.style.width = widthPercent + '%';
     
-    if (co2Volumes > 4.0) {
+    if (co2Volumes > 3.5) {
         gaugeEl.style.backgroundColor = '#ef4444';
         valueEl.className = 'text-xl md:text-2xl mono font-black text-red-500 animate-pulse';
         valueEl.style.color = '#ef4444';
-        dangerHint.textContent = '⚠️ 当前残糖极高，装瓶极度危险！请在一发更酸后再装瓶。';
+        dangerHint.textContent = '⚠️ 高压危险！建议减少糖分或增加装瓶量。';
         dangerHint.classList.remove('hidden');
-    } else if (co2Volumes < 1.5) {
-        gaugeEl.style.backgroundColor = '#6b7280';
-        valueEl.className = 'text-xl md:text-2xl mono font-black text-gray-400';
+    } else if (co2Volumes >= 3.0 && co2Volumes <= 3.5) {
+        gaugeEl.style.backgroundColor = '#f59e0b';
+        valueEl.className = 'text-xl md:text-2xl mono font-black text-amber-400';
         dangerHint.classList.add('hidden');
-    } else if (co2Volumes >= 1.5 && co2Volumes < 3.5) {
+    } else if (co2Volumes >= 1.5 && co2Volumes < 3.0) {
         gaugeEl.style.backgroundColor = '#22c55e';
         valueEl.className = 'text-xl md:text-2xl mono font-black text-green-400';
         dangerHint.classList.add('hidden');
     } else {
-        gaugeEl.style.backgroundColor = '#ef4444';
-        valueEl.className = 'text-xl md:text-2xl mono font-black text-red-500';
+        gaugeEl.style.backgroundColor = '#6b7280';
+        valueEl.className = 'text-xl md:text-2xl mono font-black text-gray-400';
         dangerHint.classList.add('hidden');
     }
     
@@ -499,15 +579,21 @@ function calculateF2Pressure() {
     const TARGET_PRESSURE = 2.5;
     
     let tanninDelay = 0;
-    if (additiveHeavy || additiveLight) {
-        tanninDelay = 12;
-    }
-    
     const tanninHint = document.getElementById('f2-tannin-hint');
-    if (additiveHeavy || additiveLight) {
+    
+    if (additiveHeavy) {
+        tanninDelay = 18;
+        tanninHint.textContent = '⚠️ 发酵动力可能受限';
         tanninHint.classList.remove('hidden');
         tanninHint.style.display = 'block';
+    } else if (additiveLight) {
+        tanninDelay = 6;
+        tanninHint.textContent = '';
+        tanninHint.classList.add('hidden');
+        tanninHint.style.display = 'none';
     } else {
+        tanninDelay = 0;
+        tanninHint.textContent = '';
         tanninHint.classList.add('hidden');
         tanninHint.style.display = 'none';
     }
@@ -589,6 +675,13 @@ function autoCalculate() {
 function startNewBatch() {
     if (confirm('确定要开始新批次吗？这将清空所有历史记录和配置。')) {
         localStorage.clear();
+        
+        if (window.chillTimerInterval) {
+            clearInterval(window.chillTimerInterval);
+        }
+        window.chillModeActive = false;
+        window.chillEndTime = null;
+        
         engine.logs = [];
         engine.mode = 'point';
         
@@ -613,6 +706,11 @@ function startNewBatch() {
             document.getElementById('f2-additive-heavy').checked = false;
         }
         document.getElementById('f2-tannin-hint').classList.add('hidden');
+        
+        document.getElementById('f2-chill-mode').classList.add('hidden');
+        document.getElementById('f2-start-chill').classList.remove('hidden');
+        document.getElementById('f2-chill-status').textContent = '气泡锁定中，请勿开瓶';
+        document.getElementById('f2-chill-timer').textContent = '24:00:00';
         
         const params = engine.initParams();
         updateUI(params);
