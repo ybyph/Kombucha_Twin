@@ -211,33 +211,15 @@ function updateDashboard(result) {
         let abv = 0;
         try {
             const logs = engine.logs || [];
-            let firstBrix = 0;
-            for (let i = 0; i < logs.length; i++) {
-                if (logs[i] && logs[i].brix !== null && logs[i].brix !== undefined && isFinite(logs[i].brix)) {
-                    firstBrix = logs[i].brix;
-                    break;
-                }
-            }
-            if (firstBrix === 0 && logs.length > 0 && logs[0]) {
-                firstBrix = (logs[0].brix !== null && logs[0].brix !== undefined && isFinite(logs[0].brix)) ? logs[0].brix : 10.0;
-            }
-
-            let lastValidBrix = 0;
-            for (let i = logs.length - 1; i >= 0; i--) {
-                if (logs[i] && logs[i].brix !== null && logs[i].brix !== undefined && isFinite(logs[i].brix)) {
-                    lastValidBrix = logs[i].brix;
-                    break;
-                }
-            }
-            if (lastValidBrix === 0) {
-                lastValidBrix = firstBrix;
-            }
-
-            const brixDrop = firstBrix - lastValidBrix;
-            if (isNaN(brixDrop) || !isFinite(brixDrop)) {
+            const firstBrix = (logs[0] && logs[0].brix !== null && logs[0].brix !== undefined && isFinite(logs[0].brix)) ? logs[0].brix : 0;
+            const lastIdx = logs.length - 1;
+            const lastBrix = (logs[lastIdx] && logs[lastIdx].brix !== null && logs[lastIdx].brix !== undefined && isFinite(logs[lastIdx].brix)) ? logs[lastIdx].brix : 0;
+            
+            if (firstBrix === 0 || lastBrix === 0) {
                 abv = 0;
             } else {
-                abv = Math.max(0, brixDrop * 0.5);
+                const rawAbv = (firstBrix - lastBrix) * 0.5;
+                abv = Math.max(0, rawAbv);
             }
             if (isNaN(abv) || !isFinite(abv)) {
                 abv = 0;
@@ -1230,6 +1212,42 @@ function initEventListeners() {
         }
     };
     
+    document.getElementById('btn-end-f1').addEventListener('click', () => {
+        if (window.f1Locked) return;
+        
+        const lastLog = engine.logs[engine.logs.length - 1];
+        if (!lastLog || (lastLog.brix === null && lastLog.brix === undefined)) {
+            alert('没有有效的Brix数据');
+            return;
+        }
+        
+        window.f1Locked = true;
+        unlockF2UI();
+        
+        const brixEl = document.getElementById('f2-bottling-brix');
+        if (brixEl && brixEl.dataset.userModified !== 'true') {
+            brixEl.value = lastLog.brix.toFixed(1);
+        }
+        
+        const phEl = document.getElementById('f2-bottling-ph');
+        if (phEl && phEl.dataset.userModified !== 'true') {
+            if (lastLog.ph !== null && lastLog.ph !== undefined) {
+                phEl.value = lastLog.ph.toFixed(1);
+            }
+        }
+        
+        const mask = document.getElementById('f2-disabled-mask');
+        if (mask) mask.style.display = 'none';
+        
+        const endBtn = document.getElementById('end-f1-btn');
+        if (endBtn) endBtn.style.display = 'none';
+        const lockedHint = document.getElementById('f1-locked-hint');
+        if (lockedHint) lockedHint.classList.remove('hidden');
+        
+        recomputeAndRender();
+        showToast('一发已锁死，F2已解锁');
+    });
+    
     const countdownBtn = document.getElementById('f2-start-countdown-btn');
     if (countdownBtn) countdownBtn.onclick = startF2Countdown;
     
@@ -1256,6 +1274,15 @@ function initEventListeners() {
 
     document.getElementById('btn-submit').onclick = () => {
         if (window.f1Locked) return;
+        
+        if (engine.logs.length === 0) {
+            const brix = document.getElementById('input-brix').value;
+            const ph = document.getElementById('input-ph').value;
+            if (brix === '' || ph === '') {
+                alert("首条记录必须填写初始 Brix 和 pH");
+                return;
+            }
+        }
         
         if (!validateForm(engine.mode)) return;
         
