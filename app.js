@@ -387,6 +387,45 @@ function calculateF2Pressure() {
         gaugeEl.style.backgroundColor = '#ef4444';
         valueEl.className = 'text-3xl mono font-black text-red-500 animate-pulse';
     }
+
+    const BASE_DEGREE_HOURS = 1728;
+    const STANDARD_SUGAR_PER_LITER = 10;
+    
+    let avgTemp = 24;
+    if (engine.logs.length > 0) {
+        const lastLog = engine.logs[engine.logs.length - 1];
+        avgTemp = lastLog.mode === 'diurnal' 
+            ? (lastLog.tempMin + lastLog.tempMax) / 2 
+            : lastLog.temp;
+    }
+    
+    const sugarPerLiter = liquidVolume > 0 ? (totalSugar / liquidVolume) * 1000 : 0;
+    const sugarFactor = Math.min(sugarPerLiter / STANDARD_SUGAR_PER_LITER, 2);
+    
+    let targetHours = BASE_DEGREE_HOURS / avgTemp;
+    targetHours = targetHours / sugarFactor;
+    
+    if (isNaN(targetHours) || targetHours <= 0) {
+        document.getElementById('f2-time-remaining').innerText = '等待数据...';
+        document.getElementById('f2-chill-hint').innerText = '';
+        return;
+    }
+    
+    const hours = Math.floor(targetHours);
+    const minutes = Math.floor((targetHours - hours) * 60);
+    
+    if (hours > 0) {
+        document.getElementById('f2-time-remaining').innerText = `${hours} 小时 ${minutes} 分钟`;
+    } else {
+        document.getElementById('f2-time-remaining').innerText = `${minutes} 分钟`;
+    }
+    
+    const targetTime = new Date(Date.now() + targetHours * 3600000);
+    const hoursStr = targetTime.getHours().toString().padStart(2, '0');
+    const minsStr = targetTime.getMinutes().toString().padStart(2, '0');
+    const dateStr = `${targetTime.getMonth() + 1}/${targetTime.getDate()}`;
+    
+    document.getElementById('f2-chill-hint').innerText = `建议于 ${dateStr} ${hoursStr}:${minsStr} 移入冰箱冷藏，锁定压力和风味。`;
 }
 
 function autoCalculate() {
