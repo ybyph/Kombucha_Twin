@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kombucha Twin v6.0 - 终极全能版</title>
+    <title>Kombucha Twin Lab v6.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;800&display=swap');
-        body { background-color: #050505; color: #e5e5e5; font-family: -apple-system, sans-serif; }
-        .glass-card { background: rgba(18, 18, 18, 0.9); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        input, select { background-color: #000 !important; border: 1px solid #222 !important; color: #fff !important; border-radius: 10px; padding: 10px; font-family: 'JetBrains Mono'; font-size: 13px; }
+        body { background-color: #050505; color: #e5e5e5; font-family: -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+        .glass-card { background: rgba(18, 18, 18, 0.9); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 20px; }
+        input, select { background-color: #000 !important; border: 1px solid #222 !important; color: #fff !important; border-radius: 10px; padding: 10px; font-family: 'JetBrains Mono'; font-size: 13px; outline: none; }
         input:focus { border-color: #fbbf24 !important; }
-        .stat-label { font-size: 9px; color: #4b5563; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
+        .stat-label { font-size: 9px; color: #4b5563; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
         .stat-value { font-family: 'JetBrains Mono'; font-weight: 800; }
-        .tab-btn { padding: 8px 16px; font-size: 11px; font-weight: 900; border-radius: 8px; transition: 0.2s; }
-        .tab-active { background: #fbbf24; color: #000; }
-        .history-card { background: rgba(255,255,255,0.02); border-left: 4px solid #333; transition: 0.2s; }
-        .history-card:hover { background: rgba(255,255,255,0.05); }
+        .btn-tab { padding: 8px 16px; font-size: 11px; font-weight: 900; border-radius: 8px; color: #666; transition: 0.2s; }
+        .btn-tab.active { background: #fbbf24; color: #000; }
+        .history-card { background: rgba(255,255,255,0.02); border-radius: 12px; border-left: 4px solid #333; }
+        .history-card:hover { background: rgba(255,255,255,0.04); }
     </style>
 </head>
 <body class="p-4 max-w-lg mx-auto pb-32">
@@ -25,106 +25,83 @@
     <header class="flex justify-between items-center mb-8 px-2">
         <div>
             <h1 class="text-2xl font-black italic tracking-tighter">LAB <span class="text-amber-500">TWIN</span></h1>
-            <p class="text-[9px] text-gray-600 font-bold uppercase tracking-[0.2em]">Kombucha Control v6.0</p>
+            <p class="text-[9px] text-gray-600 font-bold uppercase tracking-[0.2em]">Full Kinetic Control v6.0</p>
         </div>
-        <button onclick="resetBatch()" class="text-[8px] bg-red-950/20 text-red-500 border border-red-900/30 px-3 py-1 rounded-full font-black uppercase">Reset</button>
+        <button onclick="resetBatch()" class="text-[8px] bg-red-950/20 text-red-500 border border-red-900/30 px-3 py-1 rounded-full font-black uppercase">Reset All</button>
     </header>
 
-    <section class="grid grid-cols-2 gap-4 mb-4">
+    <section class="grid grid-cols-2 gap-4 mb-4 text-center">
         <div class="glass-card p-5 border-b-2 border-amber-600">
             <p class="stat-label">发酵估计 ABV</p>
             <p id="abv-display" class="stat-value text-3xl text-amber-500 mt-1">0.00%</p>
         </div>
         <div class="glass-card p-5 border-b-2 border-blue-600">
             <p class="stat-label">积温倒计时 (2100h·C)</p>
-            <p id="countdown-display" class="stat-value text-xl text-white mt-2 leading-none">--</p>
+            <p id="countdown-display" class="stat-value text-xl text-white mt-2 leading-none uppercase">等待输入</p>
         </div>
     </section>
 
     <div class="glass-card p-6 mb-4">
         <div class="flex justify-between items-center mb-6">
-            <h3 class="stat-label text-blue-400">物理约束 & 配方模式</h3>
+            <h3 class="stat-label text-blue-400">物理约束 & 配方引擎</h3>
             <div class="flex gap-1 bg-black p-1 rounded-lg">
-                <button id="btn-mode-auto" onclick="setMode('auto')" class="tab-btn tab-active">新手</button>
-                <button id="btn-mode-expert" onclick="setMode('expert')" class="tab-btn text-gray-500">专家</button>
+                <button id="btn-auto" onclick="setRecipeMode('auto')" class="btn-tab active">新手 (1:7)</button>
+                <button id="btn-expert" onclick="setRecipeMode('expert')" class="btn-tab">专家模式</button>
             </div>
         </div>
 
         <div class="grid grid-cols-2 gap-4 mb-6">
-            <div>
-                <label class="stat-label">容器直径 (cm)</label>
-                <input type="number" id="m-diameter" value="15.0" step="0.1" oninput="runLogic()">
-            </div>
-            <div>
-                <label class="stat-label">液位高度 (cm)</label>
-                <input type="number" id="m-height" value="18.5" step="0.1" oninput="runLogic()">
-            </div>
+            <div><label class="stat-label">容器直径 (cm)</label><input type="number" id="m-diameter" value="17.0" step="0.1" oninput="updateAll()"></div>
+            <div><label class="stat-label">液位高度 (cm)</label><input type="number" id="m-height" value="18.5" step="0.1" oninput="updateAll()"></div>
         </div>
 
-        <div id="recipe-area" class="grid grid-cols-2 gap-3 pt-4 border-t border-white/5">
-            <div>
-                <label class="stat-label">纯水 (g)</label>
-                <input type="number" id="r-water" oninput="runLogic()">
-            </div>
-            <div>
-                <label class="stat-label">启动原液 (g)</label>
-                <input type="number" id="r-starter" value="400" oninput="runLogic()">
-            </div>
+        <div class="grid grid-cols-2 gap-3 pt-4 border-t border-white/5">
+            <div><label class="stat-label">纯水 (g)</label><input type="number" id="r-water" oninput="updateAll()"></div>
+            <div><label class="stat-label">启动原液 (g)</label><input type="number" id="r-starter" value="400" oninput="updateAll()"></div>
             <div class="col-span-2 grid grid-cols-3 gap-2 mt-2">
-                <div>
-                    <label class="stat-label">白糖 (g)</label>
-                    <input type="number" id="r-sugar" oninput="runLogic()">
-                </div>
-                <div>
-                    <label class="stat-label">干茶 (g)</label>
-                    <input type="number" id="r-tea" oninput="runLogic()">
-                </div>
+                <div><label class="stat-label">白糖 (g)</label><input type="number" id="r-sugar" oninput="updateAll()"></div>
+                <div><label class="stat-label">干茶 (g)</label><input type="number" id="r-tea" oninput="updateAll()"></div>
                 <div class="bg-black/50 p-2 rounded flex flex-col justify-center items-center">
                     <span class="stat-label">A/V Ratio</span>
-                    <span id="av-display" class="text-green-400 font-mono text-xs font-bold">0.054</span>
+                    <span id="av-display" class="text-green-400 font-mono text-xs font-bold">--</span>
                 </div>
             </div>
+        </div>
+        <div class="mt-4 p-3 bg-amber-900/10 rounded-xl flex justify-between items-center border border-amber-900/20">
+            <span class="stat-label mb-0 text-amber-500">预估初始 Brix</span>
+            <span id="theory-brix" class="stat-value text-amber-500">--</span>
         </div>
     </div>
 
     <section class="glass-card p-4 mb-4">
-        <h3 class="stat-label mb-4">Fermentation Roadmap</h3>
-        <canvas id="roadmap-chart" height="150"></canvas>
+        <h3 class="stat-label mb-4">Fermentation Roadmap (Brix Trend)</h3>
+        <div class="h-[180px] w-full"><canvas id="roadmap-chart"></canvas></div>
     </section>
 
     <div class="glass-card p-6 mb-8">
-        <div class="flex gap-4 mb-6 border-b border-white/5">
-            <button onclick="setTab('log')" id="tab-log" class="pb-3 text-xs font-black border-b-2 border-amber-500">F1 采样录入</button>
-            <button onclick="setTab('f2')" id="tab-f2" class="pb-3 text-xs font-black text-gray-500 border-b-2 border-transparent">F2 二发设置</button>
+        <div class="flex gap-6 mb-6 border-b border-white/5">
+            <button onclick="setTab('f1')" id="tab-f1" class="pb-3 text-xs font-black border-b-2 border-amber-500 text-white">F1 采样记录</button>
+            <button onclick="setTab('f2')" id="tab-f2" class="pb-3 text-xs font-black border-b-2 border-transparent text-gray-500">F2 二发设置</button>
         </div>
 
-        <div id="panel-log" class="space-y-4">
+        <div id="panel-f1" class="space-y-4">
+            <div><label class="stat-label">采样时间 (支持补录)</label><input type="datetime-local" id="in-time"></div>
             <div class="grid grid-cols-3 gap-3">
-                <div><label class="stat-label">BRIX %</label><input type="number" id="in-brix" step="0.1"></div>
-                <div><label class="stat-label">pH 值</label><input type="number" id="in-ph" step="0.1" value="3.5"></div>
+                <div><label class="stat-label">BRIX %</label><input type="number" id="in-brix" step="0.1" placeholder="10.0"></div>
+                <div><label class="stat-label">pH 值</label><input type="number" id="in-ph" step="0.1" placeholder="3.5"></div>
                 <div><label class="stat-label">温度 °C</label><input type="number" id="in-temp" value="26"></div>
             </div>
-            <div>
-                <label class="stat-label">采样时间</label>
-                <input type="datetime-local" id="in-time">
-            </div>
-            <button onclick="addLog()" class="w-full bg-white text-black font-black py-4 rounded-xl text-xs uppercase tracking-widest">Append Log</button>
+            <button onclick="addLog()" class="w-full bg-white text-black font-black py-4 rounded-xl text-xs uppercase tracking-widest active:bg-amber-500 transition-colors">Append Log</button>
         </div>
 
         <div id="panel-f2" class="hidden space-y-4">
             <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="stat-label text-purple-400">水果添加量 (g)</label>
-                    <input type="number" id="f2-fruit" placeholder="max 200" oninput="limitValue(this, 200)">
-                </div>
-                <div>
-                    <label class="stat-label text-purple-400">额外补糖 (g)</label>
-                    <input type="number" id="f2-sugar" placeholder="max 200" oninput="limitValue(this, 200)">
-                </div>
+                <div><label class="stat-label text-purple-400">水果添加量 (g)</label><input type="number" id="f2-fruit" placeholder="max 200" oninput="limitSafe(this, 200)"></div>
+                <div><label class="stat-label text-purple-400">额外补糖 (g)</label><input type="number" id="f2-sugar" placeholder="max 200" oninput="limitSafe(this, 200)"></div>
             </div>
             <div class="p-4 bg-purple-900/10 border border-purple-900/30 rounded-xl">
-                <p class="stat-label">预计产气压力预测</p>
-                <p class="text-xs text-gray-400 mt-1">根据补糖量，建议二发时长：<span class="text-purple-400 font-bold">24-36 小时</span></p>
+                <p class="stat-label">F2 产气压力预测</p>
+                <p class="text-[10px] text-gray-400 mt-1 leading-relaxed">基于糖分添加量，建议在室温下保持 <span class="text-purple-400 font-black">24-48 小时</span> 后转入冷藏。请务必使用抗压玻璃瓶。</p>
             </div>
         </div>
     </div>
@@ -132,113 +109,92 @@
     <div id="log-container" class="space-y-3"></div>
 
     <script>
-        let state = JSON.parse(localStorage.getItem('kb_final_v6')) || { logs: [], mode: 'auto' };
+        // --- 核心逻辑引擎 ---
+        let state = JSON.parse(localStorage.getItem('kb_twin_v6_stable')) || { logs: [], mode: 'auto' };
         let chart = null;
 
-        function setMode(m) {
-            state.mode = m;
-            document.getElementById('btn-mode-auto').className = m === 'auto' ? 'tab-btn tab-active' : 'tab-btn text-gray-500';
-            document.getElementById('btn-mode-expert').className = m === 'expert' ? 'tab-btn tab-active' : 'tab-btn text-gray-500';
-            const rInputs = ['r-water', 'r-sugar', 'r-tea'];
-            rInputs.forEach(id => document.getElementById(id).readOnly = (m === 'auto'));
-            runLogic();
-        }
-
-        function setTab(t) {
-            document.getElementById('panel-log').classList.toggle('hidden', t !== 'log');
-            document.getElementById('panel-f2').classList.toggle('hidden', t !== 'f2');
-            document.getElementById('tab-log').className = t === 'log' ? 'pb-3 text-xs font-black border-b-2 border-amber-500' : 'pb-3 text-xs font-black text-gray-500 border-b-2 border-transparent';
-            document.getElementById('tab-f2').className = t === 'f2' ? 'pb-3 text-xs font-black border-b-2 border-amber-500' : 'pb-3 text-xs font-black text-gray-500 border-b-2 border-transparent';
-        }
-
-        function limitValue(el, max) {
-            if (parseFloat(el.value) > max) el.value = max;
-        }
-
-        function runLogic() {
-            // 1. 物理 & A/V
+        function updateAll() {
+            // 1. 物理计算 (A/V Ratio)
+            const d = parseFloat(document.getElementById('m-diameter').value) || 0;
             const h = parseFloat(document.getElementById('m-height').value) || 0;
-            document.getElementById('av-display').innerText = h > 0 ? (1/h).toFixed(3) : "0.000";
+            const av = h > 0 ? (1/h).toFixed(3) : "0.000";
+            document.getElementById('av-display').innerText = av;
 
             // 2. 配方逻辑
             if (state.mode === 'auto') {
-                const starter = parseFloat(document.getElementById('r-starter').value) || 400;
+                const starter = parseFloat(document.getElementById('r-starter').value) || 0;
                 const water = starter * 7;
                 document.getElementById('r-water').value = Math.round(water);
                 document.getElementById('r-sugar').value = Math.round(water * 0.1);
                 document.getElementById('r-tea').value = Math.round(water * 0.01);
             }
+            const w = parseFloat(document.getElementById('r-water').value) || 0;
+            const s = parseFloat(document.getElementById('r-sugar').value) || 0;
+            document.getElementById('theory-brix').innerText = w > 0 ? ((s/w)*100).toFixed(1) + "%" : "--";
 
-            // 3. 看板 & 倒计时
+            // 3. 看板 & ABV & 倒计时
             if (state.logs.length > 0) {
                 const first = state.logs[0];
                 const last = state.logs[state.logs.length - 1];
                 
                 // ABV
-                const abv = Math.max(0, (first.brix - last.brix) * 0.5);
-                document.getElementById('abv-display').innerText = abv.toFixed(2) + "%";
+                document.getElementById('abv-display').innerText = Math.max(0, (first.brix - last.brix) * 0.5).toFixed(2) + "%";
 
-                // 积温倒计时
-                const avgT = state.logs.reduce((s, l) => s + l.temp, 0) / state.logs.length;
-                const totalHoursNeeded = 2100 / (avgT || 25);
+                // 2100 积温倒计时
+                const avgT = state.logs.reduce((sum, l) => sum + l.temp, 0) / state.logs.length;
+                const hoursNeeded = 2100 / (avgT || 25);
                 const elapsedMs = Date.now() - first.time;
-                const remainingMs = (totalHoursNeeded * 3600000) - elapsedMs;
+                const remainingMs = (hoursNeeded * 3600000) - elapsedMs;
 
+                const cdEl = document.getElementById('countdown-display');
                 if (remainingMs > 0) {
-                    const d = Math.floor(remainingMs / 86400000);
-                    const hr = Math.floor((remainingMs % 86400000) / 3600000);
-                    document.getElementById('countdown-display').innerHTML = `<span class="text-amber-500">${d}</span>D <span class="text-amber-500">${hr}</span>H`;
+                    const days = Math.floor(remainingMs / 86400000);
+                    const hours = Math.floor((remainingMs % 86400000) / 3600000);
+                    cdEl.innerHTML = `<span class="text-amber-500">${days}</span>D <span class="text-amber-500">${hours}</span>H`;
+                    cdEl.className = "stat-value text-xl text-white mt-2 leading-none";
                 } else {
-                    document.getElementById('countdown-display').innerText = "READY";
+                    cdEl.innerText = "READY TO BOTTLE";
+                    cdEl.className = "stat-value text-xs text-green-400 mt-2 tracking-widest";
                 }
             }
             renderLogs();
-            updateChart();
+            drawChart();
         }
 
+        // --- UI 操作 ---
+        function setRecipeMode(m) {
+            state.mode = m;
+            document.getElementById('btn-auto').className = m === 'auto' ? 'btn-tab active' : 'btn-tab';
+            document.getElementById('btn-expert').className = m === 'expert' ? 'btn-tab active' : 'btn-tab';
+            ['r-water', 'r-sugar', 'r-tea'].forEach(id => document.getElementById(id).readOnly = (m === 'auto'));
+            updateAll();
+        }
+
+        function setTab(t) {
+            document.getElementById('panel-f1').classList.toggle('hidden', t !== 'f1');
+            document.getElementById('panel-f2').classList.toggle('hidden', t !== 'f2');
+            document.getElementById('tab-f1').className = t === 'f1' ? 'pb-3 text-xs font-black border-b-2 border-amber-500 text-white' : 'pb-3 text-xs font-black border-b-2 border-transparent text-gray-500';
+            document.getElementById('tab-f2').className = t === 'f2' ? 'pb-3 text-xs font-black border-b-2 border-amber-500 text-white' : 'pb-3 text-xs font-black border-b-2 border-transparent text-gray-500';
+        }
+
+        function limitSafe(el, max) {
+            if (parseFloat(el.value) > max) el.value = max;
+        }
+
+        // --- 数据处理 ---
         function addLog() {
             const b = parseFloat(document.getElementById('in-brix').value);
             const p = parseFloat(document.getElementById('in-ph').value) || 3.5;
             const t = parseFloat(document.getElementById('in-temp').value) || 26;
-            const timeVal = document.getElementById('in-time').value;
-            const timestamp = timeVal ? new Date(timeVal).getTime() : Date.now();
+            const timeStr = document.getElementById('in-time').value;
+            const timestamp = timeStr ? new Date(timeStr).getTime() : Date.now();
 
-            if (isNaN(b)) return alert("请输入 Brix");
+            if (isNaN(b)) return alert("请填入 Brix 数据");
             state.logs.push({ brix: b, ph: p, temp: t, time: timestamp });
             state.logs.sort((a, b) => a.time - b.time);
             save();
             document.getElementById('in-brix').value = "";
-            runLogic();
-        }
-
-        function updateChart() {
-            const ctx = document.getElementById('roadmap-chart').getContext('2d');
-            const data = state.logs.map(l => l.brix);
-            const labels = state.logs.map(l => new Date(l.time).toLocaleDateString());
-
-            if (chart) chart.destroy();
-            chart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Brix %',
-                        data: data,
-                        borderColor: '#fbbf24',
-                        backgroundColor: 'rgba(251, 191, 36, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { grid: { color: '#222' }, ticks: { color: '#666' } },
-                        x: { grid: { display: false }, ticks: { color: '#666' } }
-                    }
-                }
-            });
+            updateAll();
         }
 
         function renderLogs() {
@@ -246,37 +202,73 @@
             container.innerHTML = [...state.logs].reverse().map((log, i) => `
                 <div class="glass-card p-4 flex justify-between items-center history-card">
                     <div>
-                        <p class="text-[8px] text-gray-500 font-black mb-1">${new Date(log.time).toLocaleString()}</p>
-                        <p class="stat-value text-xs">BRIX: <span class="text-amber-500">${log.brix}%</span> | PH: ${log.ph} | ${log.temp}°C</p>
+                        <p class="text-[8px] text-gray-500 font-black uppercase mb-1">${new Date(log.time).toLocaleString()}</p>
+                        <p class="stat-value text-[11px]">
+                            BRIX: <span class="text-amber-500">${log.brix}%</span> | 
+                            PH: <span class="text-blue-400">${log.ph}</span> | 
+                            ${log.temp}°C
+                        </p>
                     </div>
-                    <button onclick="deleteLog(${state.logs.length - 1 - i})" class="text-gray-700 hover:text-red-500 px-2">×</button>
+                    <button onclick="deleteLog(${state.logs.length - 1 - i})" class="text-gray-700 hover:text-red-500 text-lg px-2">×</button>
                 </div>
             `).join('');
+        }
+
+        function drawChart() {
+            const ctx = document.getElementById('roadmap-chart').getContext('2d');
+            const brixData = state.logs.map(l => l.brix);
+            const labels = state.logs.map(l => new Date(l.time).toLocaleDateString());
+
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels.length ? labels : ['Starting'],
+                    datasets: [{
+                        data: brixData.length ? brixData : [10],
+                        borderColor: '#fbbf24',
+                        backgroundColor: 'rgba(251, 191, 36, 0.05)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#fbbf24'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { grid: { color: '#1a1a1a' }, ticks: { color: '#444', font: { size: 9 } } },
+                        x: { grid: { display: false }, ticks: { color: '#444', font: { size: 9 } } }
+                    }
+                }
+            });
         }
 
         function deleteLog(i) {
             state.logs.splice(i, 1);
             save();
-            runLogic();
+            updateAll();
         }
 
-        function save() { localStorage.setItem('kb_final_v6', JSON.stringify(state)); }
-        
+        function save() { localStorage.setItem('kb_twin_v6_stable', JSON.stringify(state)); }
+
         function resetBatch() {
-            if (confirm("物理重置所有数据？")) {
-                localStorage.removeItem('kb_final_v6');
+            if (confirm("物理重置：将清空所有实验数据，开始新批次？")) {
+                localStorage.removeItem('kb_twin_v6_stable');
                 location.reload();
             }
         }
 
-        function init() {
+        // 初始化
+        window.onload = () => {
             const now = new Date();
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             document.getElementById('in-time').value = now.toISOString().slice(0, 16);
-            setMode(state.mode);
-        }
-
-        window.onload = init;
+            setRecipeMode(state.mode);
+        };
     </script>
 </body>
 </html>
