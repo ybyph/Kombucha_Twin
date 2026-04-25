@@ -146,19 +146,19 @@
                             <div class="grid grid-cols-2 gap-3 mb-3">
                                 <div class="col-span-2">
                                     <label class="text-[10px] text-gray-500 block mb-1">纯水质量 (g)</label>
-                                    <input type="number" id="m-water" value="0" class="w-full bg-black border border-gray-800 rounded-lg p-2 text-white mono text-sm">
+                                    <input type="number" id="m-water" value="1000" class="w-full bg-black border border-gray-800 rounded-lg p-2 text-white mono text-sm">
                                 </div>
                                 <div>
                                     <label class="text-[10px] text-gray-500 block mb-1">干茶 (g)</label>
-                                    <input type="number" id="m-tea" value="0" class="w-full bg-black border border-gray-800 rounded-lg p-2 text-white mono text-sm">
+                                    <input type="number" id="m-tea" value="10" class="w-full bg-black border border-gray-800 rounded-lg p-2 text-white mono text-sm">
                                 </div>
                                 <div>
                                     <label class="text-[10px] text-gray-500 block mb-1">白糖 (g)</label>
-                                    <input type="number" id="m-sugar" value="0" class="w-full bg-black border border-gray-800 rounded-lg p-2 text-white mono text-sm">
+                                    <input type="number" id="m-sugar" value="100" class="w-full bg-black border border-gray-800 rounded-lg p-2 text-white mono text-sm">
                                 </div>
                                 <div class="col-span-2">
                                     <label class="text-[10px] text-blue-500 font-bold block mb-1">启动原液 (g)</label>
-                                    <input type="number" id="m-starter" value="0" class="w-full bg-blue-900/20 border border-blue-800 rounded-lg p-2 text-blue-300 mono text-sm font-bold">
+                                    <input type="number" id="m-starter" value="100" class="w-full bg-blue-900/20 border border-blue-800 rounded-lg p-2 text-blue-300 mono text-sm font-bold">
                                 </div>
                             </div>
                             
@@ -282,6 +282,8 @@
                         Append Log
                     </button>
                 </div>
+
+                <button id="end-f1-btn" style="width: 100%; padding: 15px; background: #e67e22; color: white; border: none; border-radius: 8px; margin-top: 20px; font-weight: bold; font-size: 14px;">结束一发，进入二发</button>
 
                 <div class="flex-grow overflow-y-auto custom-scrollbar pr-1">
                 <div id="history-container" class="space-y-3 table-scroll"></div>
