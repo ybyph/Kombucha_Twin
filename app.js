@@ -403,91 +403,101 @@ function calculateF2Pressure() {
     const fruitRatio = liquidWeight > 0 ? (fruitWeight / liquidWeight) * 100 : 0;
     const fruitRatioEl = document.getElementById('f2-fruit-ratio');
     
+    fruitInput.style.backgroundColor = '';
+    fruitInput.style.borderColor = '';
+    fruitWarning.style.opacity = '0';
+    
+    if (fruitWeight > 0) {
+        fruitRatioEl.style.opacity = '1';
+        fruitRatioEl.textContent = '(占液体重 ' + fruitRatio.toFixed(1) + '%)';
+    } else {
+        fruitRatioEl.style.opacity = '0';
+    }
+    
     if (fruitWeight > maxFruitWeight) {
         fruitInput.style.backgroundColor = '#374151';
         fruitInput.style.borderColor = '#ef4444';
         fruitWarning.style.opacity = '1';
-        fruitHint.classList.remove('hidden');
         fruitHint.textContent = '空间不足，建议减量 (最大 ' + maxFruitWeight.toFixed(0) + 'g)';
-        fruitRatioEl.style.opacity = '1';
-        fruitRatioEl.textContent = '(' + fruitRatio.toFixed(1) + '%)';
-    } else {
-        fruitInput.style.backgroundColor = '';
-        fruitInput.style.borderColor = '';
-        fruitWarning.style.opacity = '0';
-        fruitHint.classList.add('hidden');
-        if (fruitWeight > 0) {
-            fruitRatioEl.style.opacity = '1';
-            fruitRatioEl.textContent = '(' + fruitRatio.toFixed(1) + '%)';
-        } else {
-            fruitRatioEl.style.opacity = '0';
-        }
+        fruitHint.style.color = '#ef4444';
+    } else if (fruitRatio > 0 && fruitRatio < 5) {
+        fruitHint.textContent = '气泡可能较弱';
+        fruitHint.style.color = '#fbbf24';
+    } else if (fruitRatio > 15) {
+        fruitHint.textContent = '纤维过多，建议减量';
+        fruitHint.style.color = '#fbbf24';
+    } else if (fruitWeight > 0) {
+        fruitHint.textContent = '';
     }
     
     const sugarInput = document.getElementById('f2-extra-sugar');
     const sugarHint = document.getElementById('f2-sugar-hint');
-    const sugarRatio = liquidWeight > 0 ? (extraSugar / (liquidWeight / 1000)) : 0;
     const sugarRatioEl = document.getElementById('f2-sugar-ratio');
     
-    if (extraSugar > 15) {
-        sugarInput.style.backgroundColor = '#374151';
-        sugarInput.style.borderColor = '#ef4444';
-        sugarHint.classList.remove('hidden');
-    } else {
-        sugarInput.style.backgroundColor = '';
-        sugarInput.style.borderColor = '';
-        sugarHint.classList.add('hidden');
-    }
+    sugarInput.style.backgroundColor = '';
+    sugarInput.style.borderColor = '';
+    sugarHint.classList.add('hidden');
     
     const sugarPercent = liquidWeight > 0 ? (extraSugar / liquidWeight) * 100 : 0;
     
     if (extraSugar > 0) {
         sugarRatioEl.style.opacity = '1';
-        sugarRatioEl.textContent = '(' + sugarPercent.toFixed(1) + '%)';
+        sugarRatioEl.textContent = '(占液体重 ' + sugarPercent.toFixed(1) + '%)';
     } else {
         sugarRatioEl.style.opacity = '0';
     }
     
     const fruitSugarRatio = FRUIT_SUGAR_RATIO[fruitType] || 0;
     
-    const latestBrix = engine.logs.length > 0 
-        ? engine.calculate().processed[engine.calculate().processed.length - 1].realBrix 
-        : parseFloat(document.getElementById('theory-brix').innerText) || 0;
+    let latestBrix = 5.0;
+    if (engine.logs.length > 0) {
+        const lastRecord = engine.logs[engine.logs.length - 1];
+        if (lastRecord.brix !== undefined && !isNaN(lastRecord.brix)) {
+            latestBrix = lastRecord.brix;
+        } else {
+            const processed = engine.calculate().processed;
+            if (processed.length > 0) {
+                latestBrix = processed[processed.length - 1].realBrix || 5.0;
+            }
+        }
+    }
     
-    const residualSugar = latestBrix * 0.01 * 0.2 * liquidWeight;
+    const residualSugar = latestBrix * 0.01 * 0.1 * liquidWeight;
     const fruitSugar = fruitWeight * (fruitSugarRatio / 100);
     const totalSugar = residualSugar + fruitSugar + extraSugar;
-    
-    if (totalSugar > 50) {
-        console.log('F2 计算警告：总燃料超过 50g', {
-            bottleVolume, fillPercent, liquidWeight,
-            latestBrix, residualSugar,
-            fruitWeight, fruitSugarRatio, fruitSugar,
-            extraSugar, totalSugar
-        });
-    }
     
     const co2Volumes = liquidVolume > 0 ? totalSugar / (4 * (liquidVolume / 1000)) : 0;
     
     document.getElementById('f2-total-sugar').innerText = totalSugar.toFixed(1) + ' g';
-    document.getElementById('f2-co2-value').innerText = co2Volumes.toFixed(2) + ' vol';
     
     const gaugeEl = document.getElementById('f2-pressure-gauge');
     const valueEl = document.getElementById('f2-co2-value');
+    const dangerHint = document.getElementById('f2-danger-hint');
     
     let widthPercent = Math.min(co2Volumes / 5 * 100, 100);
     gaugeEl.style.width = widthPercent + '%';
     
-    if (co2Volumes < 1.5) {
+    if (co2Volumes > 4.0) {
+        gaugeEl.style.backgroundColor = '#ef4444';
+        valueEl.className = 'text-xl md:text-2xl mono font-black text-red-500 animate-pulse';
+        valueEl.style.color = '#ef4444';
+        dangerHint.textContent = '⚠️ 当前残糖极高，装瓶极度危险！请在一发更酸后再装瓶。';
+        dangerHint.classList.remove('hidden');
+    } else if (co2Volumes < 1.5) {
         gaugeEl.style.backgroundColor = '#6b7280';
-        valueEl.className = 'text-2xl mono font-black text-gray-400';
+        valueEl.className = 'text-xl md:text-2xl mono font-black text-gray-400';
+        dangerHint.classList.add('hidden');
     } else if (co2Volumes >= 1.5 && co2Volumes < 3.5) {
         gaugeEl.style.backgroundColor = '#22c55e';
-        valueEl.className = 'text-2xl mono font-black text-green-400';
+        valueEl.className = 'text-xl md:text-2xl mono font-black text-green-400';
+        dangerHint.classList.add('hidden');
     } else {
         gaugeEl.style.backgroundColor = '#ef4444';
-        valueEl.className = 'text-2xl mono font-black text-red-500 animate-pulse';
+        valueEl.className = 'text-xl md:text-2xl mono font-black text-red-500';
+        dangerHint.classList.add('hidden');
     }
+    
+    valueEl.textContent = co2Volumes.toFixed(2) + ' vol';
     
     if (extraSugar === 0 && co2Volumes < 1.5 && totalSugar > 0) {
         sugarHint.textContent = '燃料不足，建议加 2-4g 砂糖以产生气泡';
@@ -497,11 +507,10 @@ function calculateF2Pressure() {
         sugarHint.textContent = '警告：糖分过多，请减少补糖以防炸瓶';
         sugarHint.classList.remove('hidden');
         sugarHint.style.color = '#ef4444';
-    } else {
-        sugarHint.classList.add('hidden');
     }
 
     const BASE_DEGREE_HOURS = 1728;
+    const TARGET_PRESSURE = 2.5;
     
     let tanninDelay = 0;
     if (additiveHeavy || additiveLight) {
@@ -518,8 +527,9 @@ function calculateF2Pressure() {
             : lastLog.temp;
     }
     
-    let targetHours = BASE_DEGREE_HOURS / avgTemp;
-    targetHours += tanninDelay;
+    let baseHours = BASE_DEGREE_HOURS / avgTemp;
+    let pressureFactor = co2Volumes > 0 ? TARGET_PRESSURE / co2Volumes : 1;
+    let targetHours = baseHours * pressureFactor + tanninDelay;
     
     if (isNaN(targetHours) || targetHours <= 0) {
         document.getElementById('f2-time-remaining').innerText = '等待数据...';
@@ -741,6 +751,17 @@ function initEventListeners() {
             el.addEventListener('input', calculateF2Pressure);
             el.addEventListener('change', calculateF2Pressure);
         }
+    });
+    
+    document.getElementById('f2-suggest-btn').addEventListener('click', () => {
+        const bottleVolume = parseFloat(document.getElementById('f2-bottle-volume').value) || 1000;
+        const fillPercent = parseFloat(document.getElementById('f2-fill-slider').value) || 90;
+        const liquidVolume = bottleVolume * (fillPercent / 100);
+        const ratio = liquidVolume / 1000;
+        document.getElementById('f2-fruit-weight').value = Math.round(50 * ratio);
+        document.getElementById('f2-extra-sugar').value = Math.round(3 * ratio);
+        calculateF2Pressure();
+        showToast('已应用推荐配方');
     });
 }
 
