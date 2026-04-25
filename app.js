@@ -1,575 +1,148 @@
-const engine = new KombuchaEngineV4();
-let chart;
-const STORAGE_KEY = 'kombucha-twin-data';
-
-window.f2Activated = false;
-window.f1Locked = false;
-
-function safeSetText(id, val) {
-    const el = document.getElementById(id);
-    if (el) el.innerText = val;
-}
-
-function saveToStorage() {
-    try {
-        const data = {
-            logs: engine.logs,
-            mode: engine.mode,
-            f2Activated: window.f2Activated,
-            f1Locked: window.f1Locked,
-            savedAt: new Date().toISOString()
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch (e) {
-        console.error('saveToStorage error:', e);
-    }
-}
-
-function loadFromStorage() {
-    try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (!stored) return false;
-        const data = JSON.parse(stored);
-        if (data.mode) engine.mode = data.mode;
-        if (data.f2Activated) window.f2Activated = data.f2Activated;
-        if (data.f1Locked) window.f1Locked = data.f1Locked;
-        if (data.logs && Array.isArray(data.logs)) {
-            data.logs.forEach(log => {
-                engine.logs.push({ ...log, timestamp: new Date(log.timestamp) });
-            });
-        }
-        return true;
-    } catch (e) {
-        console.error('loadFromStorage error:', e);
-        return false;
-    }
-}
-
-function updateTheoryBrix() {
-    try {
-        const water = parseFloat(document.getElementById('m-water').value) || 0;
-        const sugar = parseFloat(document.getElementById('m-sugar').value) || 0;
-        const theoryBrix = water > 0 ? ((sugar / water) * 100).toFixed(1) : "0.0";
-        const display = document.getElementById('theory-brix');
-        if (display) display.innerText = theoryBrix;
-    } catch (e) {
-        console.error('updateTheoryBrix error:', e);
-    }
-}
-
-function updateUI(params) {
-    try {
-        if (!params) return;
-        const brixEl = document.getElementById('theory-brix');
-        if (brixEl) { brixEl.innerText = params.theoryBrix; brixEl.className = params.brixClass || 'text-amber-400'; }
-        const teaEl = document.getElementById('tea-status');
-        if (teaEl) { teaEl.innerText = params.teaStatus; teaEl.className = params.teaClass || 'text-green-400'; }
-        const starterEl = document.getElementById('starter-pct');
-        if (starterEl) { starterEl.innerText = params.starterPct; starterEl.className = params.starterClass || 'text-blue-400'; }
-        const avEl = document.getElementById('av-value');
-        if (avEl) avEl.innerText = params.avValue;
-    } catch (e) {
-        console.error('updateUI error:', e);
-    }
-}
-
-function clearInputFields() {
-    try {
-        document.getElementById('input-temp').value = '';
-        document.getElementById('input-temp-min').value = '';
-        document.getElementById('input-temp-max').value = '';
-        document.getElementById('input-brix').value = '';
-        document.getElementById('input-ph').value = '';
-    } catch (e) {
-        console.error('clearInputFields error:', e);
-    }
-}
-
-function showToast(msg) {
-    try {
-        const t = document.getElementById('toast');
-        if (t) {
-            document.getElementById('toast-msg').innerText = msg || '记录已保存';
-            t.classList.replace('toast-exit', 'toast-enter');
-            setTimeout(() => t.classList.replace('toast-enter', 'toast-exit'), 2000);
-        }
-    } catch (e) {
-        console.error('showToast error:', e);
-    }
-}
-
-function updateDynamicHint() {
-    try {
-        const hintEl = document.getElementById('first-record-hint');
-        if (!hintEl) return;
-        if (engine.logs.length === 0) {
-            hintEl.classList.remove('hidden');
-        } else {
-            hintEl.classList.add('hidden');
-        }
-    } catch (e) {
-        console.error('updateDynamicHint error:', e);
-    }
-}
-
-function renderRoadmap(logs) {
-    try {
-        if (!chart) {
-            initChart();
-            if (!chart) return;
-        }
-
-        const initBrix = engine.initBrix || 10.0;
-        const maxHour = 2100 / 24;
-        const steps = 12;
-        const predictLabels = [];
-        const predictData = [];
-        for (let i = 0; i <= steps; i++) {
-            const hour = (maxHour / steps) * i;
-            predictLabels.push(hour);
-            predictData.push(initBrix - (initBrix - 4.0) * (i / steps));
-        }
-
-        const axisLabels = [];
-        const alignedPredictData = [];
-        const step = Math.ceil(maxHour / 12);
-        const numSteps = Math.ceil(maxHour / step) + 1;
-        for (let i = 0; i <= numSteps; i++) {
-            const hour = i * step;
-            axisLabels.push(`T+${hour}h`);
-            let predictVal = null;
-            for (let j = 0; j < predictLabels.length - 1; j++) {
-                if (hour >= predictLabels[j] && hour <= predictLabels[j + 1]) {
-                    const ratio = (predictLabels[j + 1] - predictLabels[j]) > 0 ? (hour - predictLabels[j]) / (predictLabels[j + 1] - predictLabels[j]) : 0;
-                    predictVal = predictData[j] + (predictData[j + 1] - predictData[j]) * ratio;
-                    break;
-                }
-            }
-            alignedPredictData.push(predictVal);
-        }
-
-        chart.data.labels = axisLabels;
-        chart.data.datasets[0].data = [];
-        chart.data.datasets[1].data = [];
-        chart.data.datasets[2].data = alignedPredictData;
-        chart.update();
-    } catch (e) {
-        console.error('renderRoadmap error:', e);
-    }
-}
-
-function updateDashboard() {
-    try {
-        const logs = engine.logs;
-        if (!logs || logs.length === 0) {
-            safeSetText('abv-est', '0.00%');
-            safeSetText('remaining-time', '0 小时');
-            return;
-        }
-
-        const startBrix = parseFloat(logs[0].brix) || 10;
-        const latestBrix = parseFloat(logs[logs.length - 1].brix) || startBrix;
-        const currentAbv = Math.max(0, (startBrix - latestBrix) * 0.5).toFixed(2);
-        safeSetText('abv-est', currentAbv + '%');
-
-        const startTime = new Date(logs[0].timestamp);
-        const now = new Date();
-        const elapsedHours = (now - startTime) / (1000 * 60 * 60);
-        const avgTemp = logs.reduce((sum, l) => sum + (parseFloat(l.temp) || 25), 0) / logs.length;
-        const remainingHours = Math.max(0, (2100 / avgTemp) - elapsedHours);
-        safeSetText('remaining-time', Math.round(remainingHours) + ' 小时');
-
-        safeSetText('elapsed-time', Math.floor(elapsedHours) + ' 小时');
-        safeSetText('current-brix', latestBrix.toFixed(1));
-        safeSetText('bio-hours', elapsedHours.toFixed(1) + ' h');
-        safeSetText('tta-est', (Math.max(0, (startBrix - latestBrix) * 0.08 + 0.15)).toFixed(2));
-
-        if (window.renderRoadmap) window.renderRoadmap(logs);
-    } catch (e) {
-        console.error('updateDashboard error:', e);
-        safeSetText('abv-est', '0.00%');
-        safeSetText('remaining-time', '0');
-    }
-}
-
-function initChart() {
-    try {
-        if (chart) {
-            chart.destroy();
-            chart = null;
-        }
-        const ctx = document.getElementById('roadmap-chart').getContext('2d');
-        chart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [
-                    { label: '实测糖度', data: [], borderColor: '#f59e0b', tension: 0.4, yAxisID: 'y', spanGaps: true, pointRadius: 4, pointBackgroundColor: '#f59e0b', fill: true, backgroundColor: 'rgba(245, 158, 11, 0.05)' },
-                    { label: 'pH', data: [], borderColor: '#3b82f6', borderDash: [5, 5], tension: 0.4, yAxisID: 'y1', spanGaps: true, pointRadius: 3, pointBackgroundColor: '#3b82f6' },
-                    { label: '预测糖度', data: [], borderColor: '#10b981', borderDash: [10, 5], tension: 0.6, yAxisID: 'y', spanGaps: true, pointRadius: 0, fill: false, backgroundColor: 'transparent' }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: { grid: { display: false }, ticks: { color: '#4b5563', font: { size: 9, family: 'monospace' } } },
-                    y: { position: 'left', min: 0, max: 14, grid: { color: '#1f2937' }, ticks: { color: '#f59e0b' } },
-                    y1: { position: 'right', min: 2.5, max: 5, grid: { display: false }, ticks: { color: '#3b82f6' } }
-                },
-                plugins: {
-                    legend: { display: true, position: 'top', align: 'end', labels: { color: '#6b7280', font: { size: 10, family: 'monospace' }, usePointStyle: true, padding: 20 } }
-                }
-            }
-        });
-    } catch (e) {
-        console.error('initChart error:', e);
-    }
-}
-
-function deleteEntry(id) {
-    if (window.f1Locked) return;
-    try {
-        engine.deleteRecord(id);
-        updateDynamicHint();
-        updateDashboard();
-        saveToStorage();
-    } catch (e) {
-        console.error('deleteEntry error:', e);
-    }
-}
-
-function startNewBatch() {
-    try {
-        if (confirm('确定要开始新批次吗？这将清空所有历史记录和配置。')) {
-            localStorage.clear();
-            window.f2Activated = false;
-            window.f1Locked = false;
-            engine.logs = [];
-            engine.mode = 'point';
-
-            document.getElementById('m-water').value = '1000';
-            document.getElementById('m-tea').value = '10';
-            document.getElementById('m-sugar').value = '100';
-            document.getElementById('m-starter').value = '100';
-            document.getElementById('vessel-d').value = '0';
-            document.getElementById('liquid-h').value = '0';
-            document.getElementById('base-amount').value = '0';
-            document.getElementById('input-temp').value = '';
-            document.getElementById('input-temp-min').value = '';
-            document.getElementById('input-temp-max').value = '';
-            document.getElementById('input-brix').value = '';
-            document.getElementById('input-ph').value = '';
-
-            const mask = document.getElementById('f2-disabled-mask');
-            if (mask) mask.style.display = 'flex';
-            const endBtn = document.getElementById('btn-end-f1');
-            if (endBtn) endBtn.style.display = 'block';
-            const lockedHint = document.getElementById('f1-locked-hint');
-            if (lockedHint) lockedHint.classList.add('hidden');
-
-            updateTheoryBrix();
-            const params = engine.initParams();
-            updateUI(params);
-
-            safeSetText('elapsed-time', '等待首条录入...');
-            safeSetText('remaining-time', '0');
-            safeSetText('current-brix', '--');
-            safeSetText('bio-hours', '0.0 h');
-            safeSetText('tta-est', '0.00');
-            safeSetText('abv-est', '0.00%');
-
-            const hc = document.getElementById('history-container');
-            if (hc) hc.innerHTML = '';
-
-            if (chart) { chart.destroy(); chart = null; }
-            initChart();
-            updateDynamicHint();
-
-            showToast('新批次已开始');
-        }
-    } catch (e) {
-        console.error('startNewBatch error:', e);
-    }
-}
-
-function toggleRecipePanel() {
-    try {
-        const content = document.getElementById('recipe-content');
-        const toggleBtn = document.getElementById('toggle-recipe');
-        if (content.classList.contains('hidden')) {
-            content.classList.remove('hidden');
-            toggleBtn.innerText = '折叠';
-        } else {
-            content.classList.add('hidden');
-            toggleBtn.innerText = '展开';
-        }
-    } catch (e) {
-        console.error('toggleRecipePanel error:', e);
-    }
-}
-
-function validateForm(engineMode) {
-    try {
-        const selectedTime = document.getElementById('input-time').value;
-        if (!selectedTime) { console.log('请选择时间'); return false; }
-        const selectedDate = new Date(selectedTime);
-        const now = new Date();
-        if (selectedDate > now) { console.log('时间不能晚于当前系统时间'); return false; }
-        const existingTimestamps = engine.logs.map(l => l.timestamp.getTime());
-        const newTimestamp = selectedDate.getTime();
-        if (existingTimestamps.includes(newTimestamp)) { console.log('该时间点已有记录'); return false; }
-        if (engineMode === 'diurnal') {
-            const tempMin = document.getElementById('input-temp-min').value;
-            const tempMax = document.getElementById('input-temp-max').value;
-            if (tempMin === '' || tempMax === '') { console.log('昼夜模式必须填写最低温和最高温'); return false; }
-        } else {
-            const temp = document.getElementById('input-temp').value;
-            if (temp === '' || isNaN(parseFloat(temp))) { console.log('请输入温度'); return false; }
-        }
-        return true;
-    } catch (e) {
-        console.error('validateForm error:', e);
-        return false;
-    }
-}
-
-function initEventListeners() {
-    const btnAutoCalc = document.getElementById('btn-auto-calc');
-    if (btnAutoCalc) {
-        btnAutoCalc.addEventListener('click', () => {
-            const factor = document.getElementById('limiting-factor').value;
-            const baseAmount = parseFloat(document.getElementById('base-amount').value) || 0;
-            let water, tea, sugar, starter;
-
-            if (factor === 'starter') {
-                starter = baseAmount;
-                water = baseAmount * 7;
-            } else {
-                water = baseAmount;
-                starter = baseAmount / 7;
-            }
-            tea = Math.round(water * 0.01);
-            sugar = Math.round(water * 0.1);
-
-            document.getElementById('m-water').value = Math.round(water);
-            document.getElementById('m-tea').value = tea;
-            document.getElementById('m-sugar').value = sugar;
-            document.getElementById('m-starter').value = Math.round(starter);
-
-            if (typeof updateTheoryBrix === 'function') updateTheoryBrix();
-            console.log('配方已应用：纯水 ' + Math.round(water) + 'g');
-        });
-    }
-
-    document.getElementById('btn-new-batch').onclick = startNewBatch;
-    document.getElementById('btn-new-batch-footer').onclick = startNewBatch;
-    document.getElementById('toggle-recipe').onclick = toggleRecipePanel;
-
-    const endF1Btn = document.getElementById('btn-end-f1');
-    if (endF1Btn) {
-        endF1Btn.addEventListener('click', () => {
-            if (window.f1Locked) return;
-            if (engine.logs.length === 0) {
-                console.log('请至少录入一条日志数据后再结束一发');
-                return;
-            }
-            const lastLog = engine.logs[engine.logs.length - 1];
-            if (!lastLog) {
-                console.log('没有有效数据');
-                return;
-            }
-
-            window.f1Locked = true;
-            window.f2Activated = true;
-
-            const mask = document.getElementById('f2-disabled-mask');
-            if (mask) mask.style.display = 'none';
-
-            const bottlingBrixEl = document.getElementById('f2-bottling-brix');
-            if (bottlingBrixEl && lastLog.brix !== null) {
-                bottlingBrixEl.value = lastLog.brix.toFixed(1);
-            }
-            const bottlingPhEl = document.getElementById('f2-bottling-ph');
-            if (bottlingPhEl && lastLog.ph !== null) {
-                bottlingPhEl.value = lastLog.ph.toFixed(1);
-            }
-
-            const countdownBtn = document.getElementById('f2-start-countdown-btn');
-            if (countdownBtn) countdownBtn.classList.remove('hidden');
-
-            const endBtn = document.getElementById('btn-end-f1');
-            if (endBtn) endBtn.style.display = 'none';
-            const lockedHint = document.getElementById('f1-locked-hint');
-            if (lockedHint) lockedHint.classList.remove('hidden');
-
-            saveToStorage();
-            showToast('一发已结束，数据已同步至二发！');
-
-            const f2Panel = document.getElementById('f2-panel');
-            if (f2Panel) {
-                window.scrollTo(0, f2Panel.offsetTop);
-            }
-        });
-    }
-
-    document.getElementById('f2-start-countdown-btn').onclick = () => {
-        if (!window.f2Activated) return;
-        const fruitWeight = parseFloat(document.getElementById('f2-fruit-weight').value) || 0;
-        const extraSugar = parseFloat(document.getElementById('f2-extra-sugar').value) || 0;
-        if (fruitWeight === 0 && extraSugar === 0) {
-            console.log('请至少输入水果重量或补糖量');
-            return;
-        }
-        showToast('F2 二发已启动！');
-    };
-
-    const btnPoint = document.getElementById('mode-point');
-    const btnDiurnal = document.getElementById('mode-diurnal');
-
-    btnPoint.onclick = () => {
-        engine.mode = 'point';
-        btnPoint.className = "flex-1 py-1 text-[10px] font-bold rounded-md bg-gray-800 text-white transition-all";
-        btnDiurnal.className = "flex-1 py-1 text-[10px] font-bold rounded-md text-gray-500 transition-all";
-        document.getElementById('box-temp-main').classList.remove('hidden');
-        document.getElementById('box-temp-min').classList.add('hidden');
-        document.getElementById('box-temp-max').classList.add('hidden');
-    };
-
-    btnDiurnal.onclick = () => {
-        engine.mode = 'diurnal';
-        btnDiurnal.className = "flex-1 py-1 text-[10px] font-bold rounded-md bg-gray-800 text-white transition-all";
-        btnPoint.className = "flex-1 py-1 text-[10px] font-bold rounded-md text-gray-500 transition-all";
-        document.getElementById('box-temp-main').classList.add('hidden');
-        document.getElementById('box-temp-min').classList.remove('hidden');
-        document.getElementById('box-temp-max').classList.remove('hidden');
-    };
-
-    document.getElementById('btn-submit').onclick = () => {
-        if (window.f1Locked) return;
-        if (engine.logs.length === 0) {
-            const brix = document.getElementById('input-brix').value;
-            const ph = document.getElementById('input-ph').value;
-            if (brix === '' || ph === '') {
-                console.log('首条记录必须填写初始 Brix 和 pH');
-                return;
-            }
-        }
-        if (!validateForm(engine.mode)) return;
-
-        const data = {
-            time: document.getElementById('input-time').value,
-            mode: engine.mode,
-            temp: parseFloat(document.getElementById('input-temp').value) || 0,
-            tempMin: parseFloat(document.getElementById('input-temp-min').value) || 0,
-            tempMax: parseFloat(document.getElementById('input-temp-max').value) || 0,
-            brix: document.getElementById('input-brix').value,
-            ph: document.getElementById('input-ph').value
-        };
-
-        engine.addRecord(data);
-        clearInputFields();
-        updateDynamicHint();
-        updateDashboard();
-        saveToStorage();
-    };
-
-    ['vessel-d', 'liquid-h', 'm-water', 'm-tea', 'm-sugar', 'm-starter'].forEach(id => {
-        document.getElementById(id).addEventListener('input', () => {
-            try {
-                updateTheoryBrix();
-                const params = engine.initParams();
-                updateUI(params);
-                updateDashboard();
-            } catch (e) {
-                console.error('param input error:', e);
-            }
-        });
-    });
-
-    ['f2-bottle-volume', 'f2-fill-slider', 'f2-fruit-type', 'f2-additive-light', 'f2-additive-heavy', 'f2-fruit-weight', 'f2-extra-sugar'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.addEventListener('input', () => {
-                try {
-                    const fillSlider = document.getElementById('f2-fill-slider');
-                    if (fillSlider) document.getElementById('f2-fill-percent').innerText = fillSlider.value + '%';
-                } catch (e) {
-                    console.error('f2 input error:', e);
-                }
-            });
-        }
-    });
-
-    document.getElementById('f2-start-chill').addEventListener('click', () => {
-        if (!window.f2Activated) return;
-        showToast('冷藏模式已启动');
-    });
-
-    document.getElementById('f2-suggest-btn').addEventListener('click', () => {
-        if (!window.f2Activated) return;
-        try {
-            const bottleVolume = parseFloat(document.getElementById('f2-bottle-volume').value) || 1000;
-            const fillPercent = parseFloat(document.getElementById('f2-fill-slider').value) || 90;
-            const liquidVolume = bottleVolume * (fillPercent / 100);
-            const ratio = liquidVolume / 1000;
-            document.getElementById('f2-fruit-weight').value = Math.round(50 * ratio);
-            document.getElementById('f2-extra-sugar').value = Math.round(3 * ratio);
-        } catch (e) {
-            console.error('f2-suggest-btn error:', e);
-        }
-    });
-}
-
-window.onload = () => {
-    try {
-        const now = new Date();
-        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-        document.getElementById('input-time').value = now.toISOString().slice(0, 16);
-
-        initChart();
-        initEventListeners();
-        updateDynamicHint();
-
-        loadFromStorage();
-
-        updateTheoryBrix();
-        const params = engine.initParams();
-        updateUI(params);
-
-        if (engine.mode === 'diurnal') {
-            document.getElementById('btn-diurnal').click();
-        }
-
-        updateDashboard();
-
-        if (window.f2Activated) {
-            const mask = document.getElementById('f2-disabled-mask');
-            if (mask) mask.style.display = 'none';
-            const endBtn = document.getElementById('btn-end-f1');
-            if (endBtn) endBtn.style.display = 'none';
-            const lockedHint = document.getElementById('f1-locked-hint');
-            if (lockedHint) lockedHint.classList.remove('hidden');
-        } else {
-            const mask = document.getElementById('f2-disabled-mask');
-            if (mask) mask.style.display = 'flex';
-            const endBtn = document.getElementById('btn-end-f1');
-            if (endBtn) endBtn.style.display = 'block';
-        }
-
-        document.querySelectorAll('#f2-fruit-weight, #f2-extra-sugar').forEach(el => el.setAttribute('max', '200'));
-
-        setInterval(() => {
-            if (engine.logs.length > 0) {
-                updateDashboard();
-            }
-        }, 60000);
-    } catch (e) {
-        console.error('window.onload error:', e);
-    }
-};
-
-window.onerror = function(msg, url, lineNo, columnNo, error) {
-    console.error('全局错误捕获:', msg, 'at', url, lineNo, columnNo);
-    return false;
+/** 
+ * Kombucha 酿造助手 - 物理逻辑修复版 
+ * 严格对齐 ID: m-water, m-tea, m-sugar, m-starter 
+ */ 
+
+// 全局状态管理 
+let state = JSON.parse(localStorage.getItem('kombucha_logs')) || { logs: [] }; 
+
+document.addEventListener('DOMContentLoaded', () => { 
+    initApp(); 
+}); 
+
+function initApp() { 
+    // 1. 绑定一键应用逻辑 (Noma 1:7 比例) 
+    const btnAutoCalc = document.getElementById('btn-auto-calc'); 
+    if (btnAutoCalc) { 
+        btnAutoCalc.onclick = () => { 
+            const factor = document.getElementById('limiting-factor').value; 
+            const baseAmount = parseFloat(document.getElementById('base-amount').value) || 0; 
+            let water, tea, sugar, starter; 
+
+            if (factor === 'starter') { 
+                starter = baseAmount; 
+                water = baseAmount * 7; 
+            } else { 
+                water = baseAmount; 
+                starter = baseAmount / 7; 
+            } 
+            tea = water * 0.01; 
+            sugar = water * 0.1; 
+
+            // 物理写入 
+            document.getElementById('m-water').value = Math.round(water); 
+            document.getElementById('m-tea').value = Math.round(tea); 
+            document.getElementById('m-sugar').value = Math.round(sugar); 
+            document.getElementById('m-starter').value = Math.round(starter); 
+            
+            updateTheoryBrix(); 
+            console.log("配方已应用：1:7 比例"); 
+        }; 
+    } 
+
+    // 2. 初始 Brix 计算逻辑 
+    const updateTheoryBrix = () => { 
+        const water = parseFloat(document.getElementById('m-water').value) || 0; 
+        const sugar = parseFloat(document.getElementById('m-sugar').value) || 0; 
+        const theoryBrix = water > 0 ? ((sugar / water) * 100).toFixed(1) : "0.0"; 
+        const display = document.getElementById('theory-brix'); 
+        if (display) display.innerText = theoryBrix; 
+    }; 
+
+    // 监听输入变化 
+    document.querySelectorAll('#m-water, #m-sugar').forEach(el => { 
+        el.oninput = updateTheoryBrix; 
+    }); 
+
+    // 3. 提交日志逻辑 
+    const btnAddLog = document.getElementById('btn-submit'); 
+    if (btnAddLog) { 
+        btnAddLog.onclick = () => { 
+            const temp = document.getElementById('input-temp').value; 
+            const brix = document.getElementById('input-brix').value; 
+            const ph = document.getElementById('input-ph').value; 
+
+            if (state.logs.length === 0 && (!brix || !ph)) { 
+                alert("首条记录必须填写初始 Brix 和 pH！"); 
+                return; 
+            } 
+
+            const newLog = { 
+                timestamp: new Date().toISOString(), 
+                temp: parseFloat(temp) || 25, 
+                brix: parseFloat(brix) || (state.logs.length > 0 ? state.logs[state.logs.length-1].brix : 10), 
+                ph: parseFloat(ph) || (state.logs.length > 0 ? state.logs[state.logs.length-1].ph : 3.5) 
+            }; 
+
+            state.logs.push(newLog); 
+            localStorage.setItem('kombucha_logs', JSON.stringify(state)); 
+            
+            // 清空输入 
+            document.getElementById('input-temp').value = ""; 
+            document.getElementById('input-brix').value = ""; 
+            document.getElementById('input-ph').value = ""; 
+
+            updateDashboard(); 
+            alert("记录成功！"); 
+        }; 
+    } 
+
+    // 4. 看板更新函数 (ABV & 积温计算) 
+    const updateDashboard = () => { 
+        const logs = state.logs; 
+        if (logs.length === 0) return; 
+
+        // ABV 计算 
+        const startBrix = logs[0].brix; 
+        const latestBrix = logs[logs.length - 1].brix; 
+        const currentAbv = Math.max(0, (startBrix - latestBrix) * 0.5).toFixed(2); 
+        document.getElementById('abv-display').innerText = currentAbv + "%"; 
+
+        // 剩余时间计算 (基于 Noma 2100 积温小时) 
+        const startTime = new Date(logs[0].timestamp); 
+        const elapsedHours = (new Date() - startTime) / (1000 * 60 * 60); 
+        const avgTemp = logs.reduce((sum, l) => sum + l.temp, 0) / logs.length; 
+        const remainingHours = Math.max(0, (2100 / avgTemp) - elapsedHours); 
+        document.getElementById('remaining-time').innerText = Math.round(remainingHours) + " 小时"; 
+
+        // 如果有 Roadmap 渲染函数则调用 
+        if (window.renderRoadmap) window.renderRoadmap(logs); 
+    }; 
+
+    // 5. F1 结束转 F2 逻辑 
+    const btnEndF1 = document.getElementById('btn-end-f1'); 
+    if (btnEndF1) { 
+        btnEndF1.onclick = () => { 
+            if (state.logs.length === 0) return alert("请先添加至少一条记录"); 
+            const lastBrix = state.logs[state.logs.length - 1].brix; 
+            
+            const f2Panel = document.getElementById('f2-panel'); 
+            if (f2Panel) { 
+                f2Panel.classList.remove('hidden'); 
+                document.getElementById('f2-starter-brix').value = lastBrix; 
+                f2Panel.scrollIntoView({ behavior: 'smooth' }); 
+            } 
+        }; 
+    } 
+
+    // 6. 二发实时约束 
+    document.querySelectorAll('#f2-fruit-weight, #f2-extra-sugar').forEach(el => { 
+        el.oninput = () => { 
+            if (parseFloat(el.value) > 200) el.value = 200; 
+            // 此处可扩展 F2 压力预测逻辑 
+        }; 
+    }); 
+
+    // 初始渲染 
+    updateTheoryBrix(); 
+    updateDashboard(); 
+} 
+
+// 物理清除功能 
+window.resetBatch = () => { 
+    if (confirm("确定要删除所有记录开始新批次吗？")) { 
+        localStorage.removeItem('kombucha_logs'); 
+        state.logs = []; 
+        location.reload(); 
+    } 
 };
