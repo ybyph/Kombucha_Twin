@@ -185,10 +185,14 @@ function updateDashboard(result) {
         let abv = 0;
         try {
             const logs = engine.logs;
-            const startBrix = (logs[0] && logs[0].brix !== null && isFinite(logs[0].brix)) ? logs[0].brix : 0;
-            const lastBrix = (logs[logs.length - 1] && logs[logs.length - 1].brix !== null && isFinite(logs[logs.length - 1].brix)) ? logs[logs.length - 1].brix : 0;
-            if (startBrix > 0 && lastBrix > 0) {
-                abv = Math.max(0, (startBrix - lastBrix) * 0.5);
+            if (logs.length < 2) {
+                abv = 0;
+            } else {
+                const firstBrix = parseFloat(logs[0].brix);
+                const lastBrix = parseFloat(logs[logs.length - 1].brix);
+                if (!isNaN(firstBrix) && !isNaN(lastBrix) && isFinite(firstBrix) && isFinite(lastBrix)) {
+                    abv = Math.max(0, (firstBrix - lastBrix) * 0.5);
+                }
             }
             if (isNaN(abv) || !isFinite(abv)) abv = 0;
         } catch (e) {
@@ -319,10 +323,39 @@ function renderResults(result) {
         if (container) container.innerHTML = '';
 
         if (!result || !result.processed || result.processed.length === 0) {
-            chart.data.labels = [];
+            const initBrix = engine.initBrix || 10.0;
+            const predictLabels = [];
+            const predictData = [];
+            const maxHour = 2100 / 24;
+            const steps = 12;
+            for (let i = 0; i <= steps; i++) {
+                const hour = (maxHour / steps) * i;
+                predictLabels.push(hour);
+                predictData.push(initBrix - (initBrix - 4.0) * (i / steps));
+            }
+
+            const axisLabels = [];
+            const alignedPredictData = [];
+            const step = Math.ceil(maxHour / 12);
+            const numSteps = Math.ceil(maxHour / step) + 1;
+            for (let i = 0; i <= numSteps; i++) {
+                const hour = i * step;
+                axisLabels.push(`T+${hour}h`);
+                let predictVal = null;
+                for (let j = 0; j < predictLabels.length - 1; j++) {
+                    if (hour >= predictLabels[j] && hour <= predictLabels[j + 1]) {
+                        const ratio = (predictLabels[j + 1] - predictLabels[j]) > 0 ? (hour - predictLabels[j]) / (predictLabels[j + 1] - predictLabels[j]) : 0;
+                        predictVal = predictData[j] + (predictData[j + 1] - predictData[j]) * ratio;
+                        break;
+                    }
+                }
+                alignedPredictData.push(predictVal);
+            }
+
+            chart.data.labels = axisLabels;
             chart.data.datasets[0].data = [];
             chart.data.datasets[1].data = [];
-            chart.data.datasets[2].data = [];
+            chart.data.datasets[2].data = alignedPredictData;
             chart.update();
             return;
         }
@@ -567,21 +600,21 @@ function initEventListeners() {
 
             if (factor === 'starter') {
                 starter = baseAmount;
-                water = baseAmount * 10;
+                water = baseAmount * 7;
             } else {
                 water = baseAmount;
-                starter = baseAmount * 0.1;
+                starter = baseAmount / 7;
             }
-            tea = water * 0.01;
-            sugar = water * 0.1;
+            tea = Math.round(water * 0.01);
+            sugar = Math.round(water * 0.1);
 
             document.getElementById('m-water').value = Math.round(water);
-            document.getElementById('m-tea').value = Math.round(tea);
-            document.getElementById('m-sugar').value = Math.round(sugar);
+            document.getElementById('m-tea').value = tea;
+            document.getElementById('m-sugar').value = sugar;
             document.getElementById('m-starter').value = Math.round(starter);
 
             if (typeof updateTheoryBrix === 'function') updateTheoryBrix();
-            alert("配方已应用：纯水 " + Math.round(water) + "g");
+            showToast('已应用');
         });
     }
 
@@ -796,4 +829,9 @@ window.onload = () => {
     } catch (e) {
         console.error('window.onload error:', e);
     }
+};
+
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+    console.error('全局错误捕获:', msg, 'at', url, lineNo, columnNo);
+    return false;
 };
