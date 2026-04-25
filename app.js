@@ -439,9 +439,11 @@ function calculateF2Pressure() {
         sugarHint.classList.add('hidden');
     }
     
+    const sugarPercent = liquidWeight > 0 ? (extraSugar / liquidWeight) * 100 : 0;
+    
     if (extraSugar > 0) {
         sugarRatioEl.style.opacity = '1';
-        sugarRatioEl.textContent = '(' + sugarRatio.toFixed(1) + 'g/L)';
+        sugarRatioEl.textContent = '(' + sugarPercent.toFixed(1) + '%)';
     } else {
         sugarRatioEl.style.opacity = '0';
     }
@@ -486,18 +488,27 @@ function calculateF2Pressure() {
         gaugeEl.style.backgroundColor = '#ef4444';
         valueEl.className = 'text-2xl mono font-black text-red-500 animate-pulse';
     }
+    
+    if (extraSugar === 0 && co2Volumes < 1.5 && totalSugar > 0) {
+        sugarHint.textContent = '燃料不足，建议加 2-4g 砂糖以产生气泡';
+        sugarHint.classList.remove('hidden');
+        sugarHint.style.color = '#fbbf24';
+    } else if (extraSugar > 15) {
+        sugarHint.textContent = '警告：糖分过多，请减少补糖以防炸瓶';
+        sugarHint.classList.remove('hidden');
+        sugarHint.style.color = '#ef4444';
+    } else {
+        sugarHint.classList.add('hidden');
+    }
 
     const BASE_DEGREE_HOURS = 1728;
-    const STANDARD_SUGAR_PER_LITER = 10;
     
     let tanninDelay = 0;
-    if (additiveHeavy) {
-        tanninDelay = 18;
-    } else if (additiveLight) {
-        tanninDelay = 6;
+    if (additiveHeavy || additiveLight) {
+        tanninDelay = 12;
     }
     
-    document.getElementById('f2-tannin-hint').classList.toggle('hidden', !additiveHeavy);
+    document.getElementById('f2-tannin-hint').classList.toggle('hidden', !additiveHeavy && !additiveLight);
     
     let avgTemp = 24;
     if (engine.logs.length > 0) {
@@ -507,11 +518,7 @@ function calculateF2Pressure() {
             : lastLog.temp;
     }
     
-    const sugarPerLiter = liquidVolume > 0 ? (totalSugar / liquidVolume) * 1000 : 0;
-    const sugarFactor = Math.min(sugarPerLiter / STANDARD_SUGAR_PER_LITER, 2);
-    
     let targetHours = BASE_DEGREE_HOURS / avgTemp;
-    targetHours = targetHours / sugarFactor;
     targetHours += tanninDelay;
     
     if (isNaN(targetHours) || targetHours <= 0) {
