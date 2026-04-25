@@ -400,21 +400,34 @@ function calculateF2Pressure() {
     const fruitWarning = document.getElementById('f2-fruit-warning');
     const fruitHint = document.getElementById('f2-fruit-hint');
     
+    const fruitRatio = liquidWeight > 0 ? (fruitWeight / liquidWeight) * 100 : 0;
+    const fruitRatioEl = document.getElementById('f2-fruit-ratio');
+    
     if (fruitWeight > maxFruitWeight) {
         fruitInput.style.backgroundColor = '#374151';
         fruitInput.style.borderColor = '#ef4444';
         fruitWarning.style.opacity = '1';
         fruitHint.classList.remove('hidden');
         fruitHint.textContent = '空间不足，建议减量 (最大 ' + maxFruitWeight.toFixed(0) + 'g)';
+        fruitRatioEl.style.opacity = '1';
+        fruitRatioEl.textContent = '(' + fruitRatio.toFixed(1) + '%)';
     } else {
         fruitInput.style.backgroundColor = '';
         fruitInput.style.borderColor = '';
         fruitWarning.style.opacity = '0';
         fruitHint.classList.add('hidden');
+        if (fruitWeight > 0) {
+            fruitRatioEl.style.opacity = '1';
+            fruitRatioEl.textContent = '(' + fruitRatio.toFixed(1) + '%)';
+        } else {
+            fruitRatioEl.style.opacity = '0';
+        }
     }
     
     const sugarInput = document.getElementById('f2-extra-sugar');
     const sugarHint = document.getElementById('f2-sugar-hint');
+    const sugarRatio = liquidWeight > 0 ? (extraSugar / (liquidWeight / 1000)) : 0;
+    const sugarRatioEl = document.getElementById('f2-sugar-ratio');
     
     if (extraSugar > 15) {
         sugarInput.style.backgroundColor = '#374151';
@@ -424,6 +437,13 @@ function calculateF2Pressure() {
         sugarInput.style.backgroundColor = '';
         sugarInput.style.borderColor = '';
         sugarHint.classList.add('hidden');
+    }
+    
+    if (extraSugar > 0) {
+        sugarRatioEl.style.opacity = '1';
+        sugarRatioEl.textContent = '(' + sugarRatio.toFixed(1) + 'g/L)';
+    } else {
+        sugarRatioEl.style.opacity = '0';
     }
     
     const fruitSugarRatio = FRUIT_SUGAR_RATIO[fruitType] || 0;

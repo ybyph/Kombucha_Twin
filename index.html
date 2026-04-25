@@ -299,13 +299,19 @@
                     <div class="relative">
                         <input type="number" id="f2-fruit-weight" value="0" class="w-full bg-black border border-gray-800 rounded-lg p-2 text-white mono text-sm">
                         <div id="f2-fruit-warning" class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-red-500 opacity-0">!</div>
+                        <span id="f2-fruit-ratio" class="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-blue-400 opacity-0"></span>
                     </div>
                     <p id="f2-fruit-hint" class="text-[9px] text-gray-600 mt-1 hidden"></p>
+                    <p class="text-[9px] text-gray-600 mt-1">建议比例：液体的 5%-10%。超过 20% 会导致发酵空间不足，且纤维过多影响口感。</p>
                 </div>
                 <div>
                     <label class="text-[10px] text-gray-500 block mb-1">额外补糖量 (g)</label>
-                    <input type="number" id="f2-extra-sugar" value="0" class="w-full bg-black border border-gray-800 rounded-lg p-2 text-white mono text-sm">
+                    <div class="relative">
+                        <input type="number" id="f2-extra-sugar" value="0" class="w-full bg-black border border-gray-800 rounded-lg p-2 text-white mono text-sm">
+                        <span id="f2-sugar-ratio" class="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-blue-400 opacity-0"></span>
+                    </div>
                     <p id="f2-sugar-hint" class="text-[9px] text-red-500 mt-1 hidden">补糖过量，炸瓶风险极高</p>
+                    <p class="text-[9px] text-gray-600 mt-1">安全上限：15g/L。过量补糖是导致炸瓶的主因，建议优先依靠水果天然糖分。</p>
                 </div>
                 <div class="lg:col-span-3">
                     <label class="text-[10px] text-gray-500 block mb-2">结构感材料</label>
