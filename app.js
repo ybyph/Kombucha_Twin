@@ -20,9 +20,19 @@ function saveToStorage() {
         'm-starter': document.getElementById('m-starter').value
     };
     
+    const f2Data = {
+        'bottle-volume': document.getElementById('f2-bottle-volume').value,
+        'fill-slider': document.getElementById('f2-fill-slider').value,
+        'fruit-type': document.getElementById('f2-fruit-type').value,
+        'fruit-weight': document.getElementById('f2-fruit-weight').value,
+        'extra-sugar': document.getElementById('f2-extra-sugar').value,
+        'additives': document.getElementById('f2-additives').value
+    };
+    
     const data = {
         logs: engine.logs,
         params: params,
+        f2Data: f2Data,
         mode: engine.mode,
         savedAt: new Date().toISOString()
     };
@@ -42,6 +52,22 @@ function loadFromStorage() {
                 const el = document.getElementById(key);
                 if (el) el.value = data.params[key];
             });
+        }
+        
+        if (data.f2Data) {
+            const f2Map = {
+                'bottle-volume': 'f2-bottle-volume',
+                'fill-slider': 'f2-fill-slider',
+                'fruit-type': 'f2-fruit-type',
+                'fruit-weight': 'f2-fruit-weight',
+                'extra-sugar': 'f2-extra-sugar',
+                'additives': 'f2-additives'
+            };
+            Object.keys(data.f2Data).forEach(key => {
+                const el = document.getElementById(f2Map[key]);
+                if (el) el.value = data.f2Data[key];
+            });
+            document.getElementById('f2-fill-percent').innerText = data.f2Data['fill-slider'] + '%';
         }
         
         if (data.mode) {
@@ -354,6 +380,7 @@ function calculateF2Pressure() {
     const fruitType = document.getElementById('f2-fruit-type').value;
     const fruitWeight = parseFloat(document.getElementById('f2-fruit-weight').value) || 0;
     const extraSugar = parseFloat(document.getElementById('f2-extra-sugar').value) || 0;
+    const additives = document.getElementById('f2-additives').value || '';
     
     const liquidVolume = bottleVolume * (fillPercent / 100);
     const fruitSugarRatio = FRUIT_SUGAR_RATIO[fruitType] || 0;
@@ -390,6 +417,11 @@ function calculateF2Pressure() {
 
     const BASE_DEGREE_HOURS = 1728;
     const STANDARD_SUGAR_PER_LITER = 10;
+    const TANNIN_DELAY_HOURS = 12;
+    
+    const hasTannin = additives.includes('松针') || additives.includes('皮壳');
+    
+    document.getElementById('f2-tannin-hint').classList.toggle('hidden', !hasTannin);
     
     let avgTemp = 24;
     if (engine.logs.length > 0) {
@@ -404,6 +436,10 @@ function calculateF2Pressure() {
     
     let targetHours = BASE_DEGREE_HOURS / avgTemp;
     targetHours = targetHours / sugarFactor;
+    
+    if (hasTannin) {
+        targetHours += TANNIN_DELAY_HOURS;
+    }
     
     if (isNaN(targetHours) || targetHours <= 0) {
         document.getElementById('f2-time-remaining').innerText = '等待数据...';
@@ -425,7 +461,11 @@ function calculateF2Pressure() {
     const minsStr = targetTime.getMinutes().toString().padStart(2, '0');
     const dateStr = `${targetTime.getMonth() + 1}/${targetTime.getDate()}`;
     
-    document.getElementById('f2-chill-hint').innerText = `建议于 ${dateStr} ${hoursStr}:${minsStr} 移入冰箱冷藏，锁定压力和风味。`;
+    let chillHint = `建议于 ${dateStr} ${hoursStr}:${minsStr} 移入冰箱冷藏，锁定压力和风味。`;
+    if (hasTannin) {
+        chillHint += ' (含高单宁/精油材料)';
+    }
+    document.getElementById('f2-chill-hint').innerText = chillHint;
 }
 
 function autoCalculate() {
@@ -477,10 +517,20 @@ function startNewBatch() {
         document.getElementById('m-starter').value = '0';
         document.getElementById('base-amount').value = '0';
         
+        document.getElementById('f2-bottle-volume').value = '1000';
+        document.getElementById('f2-fill-slider').value = '90';
+        document.getElementById('f2-fill-percent').innerText = '90%';
+        document.getElementById('f2-fruit-type').value = 'medium';
+        document.getElementById('f2-fruit-weight').value = '0';
+        document.getElementById('f2-extra-sugar').value = '0';
+        document.getElementById('f2-additives').value = '';
+        document.getElementById('f2-tannin-hint').classList.add('hidden');
+        
         const params = engine.initParams();
         updateUI(params);
         const result = engine.calculate();
         renderResults(result);
+        calculateF2Pressure();
         
         document.getElementById('btn-submit').disabled = false;
         
@@ -600,7 +650,7 @@ function initEventListeners() {
         calculateF2Pressure();
     });
 
-    ['f2-bottle-volume', 'f2-fruit-type', 'f2-fruit-weight', 'f2-extra-sugar'].forEach(id => {
+    ['f2-bottle-volume', 'f2-fruit-type', 'f2-fruit-weight', 'f2-extra-sugar', 'f2-additives'].forEach(id => {
         document.getElementById(id).addEventListener('input', calculateF2Pressure);
     });
 }
