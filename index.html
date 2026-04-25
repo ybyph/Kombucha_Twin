@@ -166,6 +166,60 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="bg-gray-900 border border-orange-900/30 rounded-2xl p-5">
+                    <h2 class="text-xs font-black text-orange-400 uppercase mb-4 border-l-2 border-orange-500 pl-2">二发排雷区 (F2 Ballistic Engine)</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-[10px] text-gray-500 block mb-1">瓶子总容量 (ml)</label>
+                            <input type="number" id="f2-bottle-volume" value="1000" class="w-full bg-black border border-gray-800 rounded-lg p-2 text-white mono text-sm">
+                        </div>
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <label class="text-[10px] text-gray-500">装瓶比例</label>
+                                <span class="text-[10px] mono text-orange-400" id="f2-fill-percent">90%</span>
+                            </div>
+                            <input type="range" id="f2-fill-slider" min="50" max="95" value="90" step="5" class="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-500 block mb-1">水果档次</label>
+                            <select id="f2-fruit-type" class="w-full bg-black border border-gray-700 rounded-lg p-2 text-white mono text-sm">
+                                <option value="very-low">极低糖 (大黄、柠檬) - 1.5%</option>
+                                <option value="low">低糖 (草莓、生姜) - 5%</option>
+                                <option value="medium">中糖 (黑莓、菠萝、苹果) - 10%</option>
+                                <option value="high">高糖 (葡萄、荔枝) - 15%</option>
+                                <option value="pure">纯糖 - 100%</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-500 block mb-1">水果重量 (g)</label>
+                            <input type="number" id="f2-fruit-weight" value="0" class="w-full bg-black border border-gray-800 rounded-lg p-2 text-white mono text-sm">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-500 block mb-1">额外补糖量 (g)</label>
+                            <input type="number" id="f2-extra-sugar" value="0" class="w-full bg-black border border-gray-800 rounded-lg p-2 text-white mono text-sm">
+                        </div>
+                        
+                        <div class="bg-black/50 rounded-xl p-4 border border-gray-800">
+                            <div class="text-center mb-3">
+                                <p class="text-[10px] text-gray-500 uppercase mb-1">CO2 压力预测</p>
+                                <p id="f2-co2-value" class="text-3xl mono font-black text-gray-300">--</p>
+                            </div>
+                            <div class="h-3 bg-gray-800 rounded-full overflow-hidden">
+                                <div id="f2-pressure-gauge" class="h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                            <div class="flex justify-between mt-2">
+                                <span class="text-[8px] text-gray-500">平淡</span>
+                                <span class="text-[8px] text-green-400">标准</span>
+                                <span class="text-[8px] text-red-500">危险</span>
+                            </div>
+                            <div class="flex justify-between text-[10px] mono mt-3">
+                                <span class="text-gray-500">总燃料</span>
+                                <span id="f2-total-sugar" class="text-amber-400">0 g</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="lg:col-span-6 space-y-6">

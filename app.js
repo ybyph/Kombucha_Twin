@@ -2,6 +2,14 @@ const engine = new KombuchaEngineV4();
 let chart;
 const STORAGE_KEY = 'kombucha-twin-data';
 
+const FRUIT_SUGAR_RATIO = {
+    'very-low': 0.015,
+    'low': 0.05,
+    'medium': 0.10,
+    'high': 0.15,
+    'pure': 1.0
+};
+
 function saveToStorage() {
     const params = {
         'vessel-d': document.getElementById('vessel-d').value,
@@ -340,6 +348,47 @@ function initChart() {
     });
 }
 
+function calculateF2Pressure() {
+    const bottleVolume = parseFloat(document.getElementById('f2-bottle-volume').value) || 1000;
+    const fillPercent = parseFloat(document.getElementById('f2-fill-slider').value) || 90;
+    const fruitType = document.getElementById('f2-fruit-type').value;
+    const fruitWeight = parseFloat(document.getElementById('f2-fruit-weight').value) || 0;
+    const extraSugar = parseFloat(document.getElementById('f2-extra-sugar').value) || 0;
+    
+    const liquidVolume = bottleVolume * (fillPercent / 100);
+    const fruitSugarRatio = FRUIT_SUGAR_RATIO[fruitType] || 0;
+    
+    const latestBrix = engine.logs.length > 0 
+        ? engine.calculate().processed[engine.calculate().processed.length - 1].realBrix 
+        : parseFloat(document.getElementById('theory-brix').innerText) || 0;
+    
+    const residualSugar = latestBrix * 0.1 * liquidVolume;
+    const fruitSugar = fruitWeight * fruitSugarRatio;
+    const totalSugar = residualSugar + fruitSugar + extraSugar;
+    
+    const co2Volumes = liquidVolume > 0 ? totalSugar / (4 * (liquidVolume / 1000)) : 0;
+    
+    document.getElementById('f2-total-sugar').innerText = totalSugar.toFixed(1) + ' g';
+    document.getElementById('f2-co2-value').innerText = co2Volumes.toFixed(2) + ' vol';
+    
+    const gaugeEl = document.getElementById('f2-pressure-gauge');
+    const valueEl = document.getElementById('f2-co2-value');
+    
+    let widthPercent = Math.min(co2Volumes / 5 * 100, 100);
+    gaugeEl.style.width = widthPercent + '%';
+    
+    if (co2Volumes < 1.5) {
+        gaugeEl.style.backgroundColor = '#6b7280';
+        valueEl.className = 'text-3xl mono font-black text-gray-400';
+    } else if (co2Volumes >= 1.5 && co2Volumes < 3.5) {
+        gaugeEl.style.backgroundColor = '#22c55e';
+        valueEl.className = 'text-3xl mono font-black text-green-400';
+    } else {
+        gaugeEl.style.backgroundColor = '#ef4444';
+        valueEl.className = 'text-3xl mono font-black text-red-500 animate-pulse';
+    }
+}
+
 function autoCalculate() {
     const factor = document.getElementById('limiting-factor').value;
     const baseAmount = parseFloat(document.getElementById('base-amount').value);
@@ -501,8 +550,19 @@ function initEventListeners() {
             updateUI(params);
             const result = engine.calculate();
             renderResults(result);
+            calculateF2Pressure();
             saveToStorage();
         });
+    });
+
+    document.getElementById('f2-fill-slider').addEventListener('input', () => {
+        const value = document.getElementById('f2-fill-slider').value;
+        document.getElementById('f2-fill-percent').innerText = value + '%';
+        calculateF2Pressure();
+    });
+
+    ['f2-bottle-volume', 'f2-fruit-type', 'f2-fruit-weight', 'f2-extra-sugar'].forEach(id => {
+        document.getElementById(id).addEventListener('input', calculateF2Pressure);
     });
 }
 
@@ -527,11 +587,13 @@ window.onload = () => {
     renderResults(result);
     
     updateUIGuide();
+    calculateF2Pressure();
     
     setInterval(() => {
         if (engine.logs.length > 0) {
             const result = engine.calculate();
             updateTimeDisplay(result);
+            calculateF2Pressure();
         }
     }, 60000);
 };
