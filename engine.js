@@ -41,10 +41,10 @@ class KombuchaEngineV4 {
         }
 
         let starterClass = 'text-green-400';
-        if (this.starterPct < 10 || this.starterPct > 15) {
+        if (this.starterPct < 10 || this.starterPct > 20) {
             starterClass = 'text-yellow-400';
         }
-        if (this.starterPct < 5 || this.starterPct > 25) {
+        if (this.starterPct < 5 || this.starterPct > 30) {
             starterClass = 'text-red-400 font-bold';
         }
 
@@ -87,67 +87,71 @@ class KombuchaEngineV4 {
                 tta: 0,
                 abv: 0,
                 processed: [],
+                predictions: [],
+                remainingHours: 0,
                 actionText: '环境就绪，等待发酵',
                 actionClass: 'text-lg font-bold text-green-500 bg-green-900/20 px-4 py-2 rounded-lg border border-green-900/30',
                 abvClass: 'text-3xl mono font-black text-red-500'
             };
         }
         
+        const TARGET_TOTAL_DEGREE_HOURS = 300;
+        
         const firstBrixRecord = this.logs.find(l => l.brix !== null);
         const f1InitBrix = firstBrixRecord ? firstBrixRecord.brix : this.initBrix;
         
-        let bioHours = 0;
         let processed = [];
-        let currentBrix = f1InitBrix;
         let lastRecordedBrix = f1InitBrix;
-        let lastBioHoursAtRecord = 0;
+        let lastValidAbv = 0;
         const startTime = this.logs[0].timestamp;
+        
+        let cumulativeDegreeHours = 0;
 
         this.logs.forEach((log, i) => {
+            let effectiveTemp = log.mode === 'diurnal' ? (log.tempMin + log.tempMax) / 2 : log.temp;
+            const displayTemp = log.mode === 'diurnal' ? `${log.tempMin}-${log.tempMax}` : `${log.temp}`;
+            const hoursElapsed = (log.timestamp - startTime) / 3600000;
+            
             if (i > 0) {
                 const prev = this.logs[i-1];
-                const hours = (log.timestamp - prev.timestamp) / 3600000;
+                const prevEffectiveTemp = prev.mode === 'diurnal' ? (prev.tempMin + prev.tempMax) / 2 : prev.temp;
+                const avgTemp = (prevEffectiveTemp + effectiveTemp) / 2;
+                const realHours = (log.timestamp - prev.timestamp) / 3600000;
                 
-                if (log.mode === 'diurnal') {
-                    const tMin = log.tempMin, tMax = log.tempMax;
-                    const tAvg = (tMin + tMax) / 2;
-                    const amp = (tMax - tMin) / 2;
-                    let periodSum = 0;
-                    for (let step = 0; step < 10; step++) {
-                        const t_inst = tAvg + amp * Math.sin((step/10) * Math.PI * 2);
-                        periodSum += Math.pow(2, (t_inst - 28) / 10);
-                    }
-                    bioHours += (hours * (periodSum / 10));
-                } else {
-                    const avgT = (log.temp + (prev.mode === 'diurnal' ? (prev.tempMin + prev.tempMax)/2 : prev.temp)) / 2;
-                    bioHours += (hours * Math.pow(2, (avgT - 28) / 10));
+                if (realHours > 0) {
+                    cumulativeDegreeHours += avgTemp * realHours;
                 }
             }
-
+            
             if (log.brix !== null) {
-                currentBrix = Math.max(0, log.brix);
-                lastRecordedBrix = currentBrix;
-                lastBioHoursAtRecord = bioHours;
-            } else {
-                const bioDelta = bioHours - lastBioHoursAtRecord;
-                const brixDecay = bioDelta * 0.05;
-                currentBrix = Math.max(0, lastRecordedBrix - brixDecay);
+                lastRecordedBrix = log.brix;
             }
-
-            const brixDrop = f1InitBrix - currentBrix;
+            
+            const brixDrop = Math.max(0, f1InitBrix - lastRecordedBrix);
             const abv = Math.max(0, brixDrop * 0.5);
+            lastValidAbv = abv;
             const tta = Math.max(0, brixDrop * 0.08 + 0.15);
 
             processed.push({
                 log,
-                hoursElapsed: (log.timestamp - startTime) / 3600000,
-                realBrix: currentBrix,
-                abv, tta, ph: log.ph,
-                displayTemp: log.mode === 'diurnal' ? `${log.tempMin}-${log.tempMax}` : `${log.temp}`
+                hoursElapsed,
+                realBrix: lastRecordedBrix,
+                abv: lastValidAbv,
+                tta,
+                ph: log.ph,
+                displayTemp,
+                cumulativeDegreeHours,
+                effectiveTemp
             });
         });
 
         const latest = processed[processed.length - 1];
+        
+        let remainingDegreeHours = Math.max(0, TARGET_TOTAL_DEGREE_HOURS - latest.cumulativeDegreeHours);
+        let remainingHours = latest.effectiveTemp > 0 ? remainingDegreeHours / latest.effectiveTemp : 0;
+        
+        const predictions = this.generatePredictions(latest, remainingHours, TARGET_TOTAL_DEGREE_HOURS);
+
         let actionText, actionClass, abvClass;
         
         if (latest.abv > 2.0) {
@@ -164,11 +168,8 @@ class KombuchaEngineV4 {
             abvClass = 'text-3xl mono font-black text-red-500';
         }
 
-        const predictions = this.generatePredictions(latest, bioHours);
-        const remainingHours = this.calculateRemainingTime(latest, bioHours);
-
         return {
-            bioHours,
+            bioHours: latest.cumulativeDegreeHours / latest.effectiveTemp,
             tta: latest.tta,
             abv: latest.abv,
             processed,
@@ -180,24 +181,44 @@ class KombuchaEngineV4 {
         };
     }
 
-    generatePredictions(latest, currentBioHours) {
+    generatePredictions(latest, remainingHours, targetDegreeHours) {
         const predictions = [];
         const targetBrix = 4;
         const currentBrix = latest.realBrix;
         
         if (currentBrix <= targetBrix) return predictions;
         
-        const efficiency = Math.min(1.0, this.avRatio * 10);
-        const decayRate = 0.05 * efficiency;
+        const currentTemp = latest.effectiveTemp;
+        if (currentTemp <= 0) return predictions;
+        
+        const remainingDegreeHours = targetDegreeHours - latest.cumulativeDegreeHours;
+        if (remainingDegreeHours <= 0) return predictions;
+        
+        const currentDecayRate = (latest.log.brix !== null && this.logs.length >= 2) ? 
+            (() => {
+                const prevWithBrix = [...this.logs].reverse().find((l, idx, arr) => idx > 0 && l.brix !== null && arr[idx-1].brix !== null);
+                if (!prevWithBrix) return 0.1;
+                const idx = this.logs.indexOf(prevWithBrix);
+                const prevLog = this.logs[idx - 1];
+                if (!prevLog || prevLog.brix === null) return 0.1;
+                const hoursDiff = (prevWithBrix.timestamp - prevLog.timestamp) / 3600000;
+                if (hoursDiff <= 0) return 0.1;
+                const brixDiff = prevLog.brix - prevWithBrix.brix;
+                const tempAvg = ((prevWithBrix.mode === 'diurnal' ? (prevWithBrix.tempMin + prevWithBrix.tempMax) / 2 : prevWithBrix.temp) + 
+                                (prevLog.mode === 'diurnal' ? (prevLog.tempMin + prevLog.tempMax) / 2 : prevLog.temp)) / 2;
+                return (brixDiff / hoursDiff) / tempAvg;
+            })() : 0.1;
         
         let predBrix = currentBrix;
-        let predBioHours = currentBioHours;
+        let elapsedHours = 0;
         
         for (let i = 0; i < 12; i++) {
-            predBioHours += 2;
-            predBrix = Math.max(targetBrix, predBrix - decayRate * 2);
+            elapsedHours += 2;
+            const degreeHoursGain = currentTemp * 2;
+            const brixDrop = currentDecayRate * degreeHoursGain;
+            predBrix = Math.max(targetBrix, predBrix - brixDrop);
             predictions.push({
-                hours: predBioHours,
+                hours: elapsedHours,
                 brix: predBrix
             });
             
@@ -205,20 +226,5 @@ class KombuchaEngineV4 {
         }
         
         return predictions;
-    }
-
-    calculateRemainingTime(latest, currentBioHours) {
-        const targetBrix = 4;
-        const currentBrix = latest.realBrix;
-        
-        if (currentBrix <= targetBrix) return 0;
-        
-        const efficiency = Math.min(1.0, this.avRatio * 10);
-        const decayRate = 0.05 * efficiency;
-        
-        const brixToDrop = currentBrix - targetBrix;
-        const bioHoursNeeded = brixToDrop / decayRate;
-        
-        return bioHoursNeeded;
     }
 }

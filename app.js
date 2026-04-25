@@ -10,7 +10,11 @@ const FRUIT_SUGAR_RATIO = {
     'pure': 1.0
 };
 
+const DEFAULT_F1_BRIX = 10.0;
+const DEFAULT_F1_STARTER_RATIO = 10;
+
 window.f2Activated = false;
+window.f2CountdownStarted = false;
 window.f1Locked = false;
 window.f2TargetTime = null;
 window.f2CountdownInterval = null;
@@ -46,6 +50,7 @@ function saveToStorage() {
         f2Data: f2Data,
         mode: engine.mode,
         f2Activated: window.f2Activated,
+        f2CountdownStarted: window.f2CountdownStarted,
         f1Locked: window.f1Locked,
         savedAt: new Date().toISOString()
     };
@@ -98,6 +103,9 @@ function loadFromStorage() {
         
         if (data.f2Activated) {
             window.f2Activated = data.f2Activated;
+        }
+        if (data.f2CountdownStarted) {
+            window.f2CountdownStarted = data.f2CountdownStarted;
         }
         if (data.f1Locked) {
             window.f1Locked = data.f1Locked;
@@ -406,7 +414,7 @@ function updateF1State() {
     }
 }
 
-function activateF2() {
+function unlockF2UI() {
     window.f2Activated = true;
     
     const mask = document.getElementById('f2-disabled-mask');
@@ -415,11 +423,8 @@ function activateF2() {
     }
     
     const calendarBtn = document.getElementById('add-to-calendar-f2');
-    const chillBtn = document.getElementById('f2-start-chill');
     calendarBtn.disabled = false;
     calendarBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-    chillBtn.disabled = false;
-    chillBtn.classList.remove('opacity-50', 'cursor-not-allowed');
     
     const lastLog = engine.logs[engine.logs.length - 1];
     const bottlingBrixEl = document.getElementById('f2-bottling-brix');
@@ -434,9 +439,30 @@ function activateF2() {
         bottlingPhEl.dataset.userModified = 'false';
     }
     
+    document.getElementById('f2-start-countdown-btn').classList.remove('hidden');
+}
+
+function startF2Countdown() {
+    if (!window.f2Activated) return;
+    
+    const fruitWeight = parseFloat(document.getElementById('f2-fruit-weight').value) || 0;
+    const extraSugar = parseFloat(document.getElementById('f2-extra-sugar').value) || 0;
+    
+    if (fruitWeight === 0 && extraSugar === 0) {
+        alert('请至少输入水果重量或补糖量，以激活二发预测');
+        return;
+    }
+    
+    window.f2CountdownStarted = true;
+    document.getElementById('f2-start-countdown-btn').classList.add('hidden');
+    
+    const chillBtn = document.getElementById('f2-start-chill');
+    chillBtn.disabled = false;
+    chillBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    
     calculateF2Pressure();
     saveToStorage();
-    showToast('🍾 F2 二发已激活！');
+    showToast('🍾 F2 二发倒计时已启动！');
 }
 
 function deleteEntry(id) {
@@ -540,6 +566,10 @@ function initChart() {
 
 function calculateF2Pressure() {
     if (!window.f2Activated) return;
+    if (!window.f2CountdownStarted) {
+        document.getElementById('f2-time-remaining').innerText = '待启动';
+        return;
+    }
     
     const bottleVolume = parseFloat(document.getElementById('f2-bottle-volume').value) || 1000;
     const fillPercent = parseFloat(document.getElementById('f2-fill-slider').value) || 90;
@@ -594,7 +624,6 @@ function calculateF2Pressure() {
     const fruitSugarRatio = FRUIT_SUGAR_RATIO[fruitType] || 0;
     
     const bottlingBrix = parseFloat(document.getElementById('f2-bottling-brix').value) || 5.0;
-    const bottlingPh = parseFloat(document.getElementById('f2-bottling-ph').value) || 3.5;
     
     const residualSugar = bottlingBrix * 0.01 * 0.2 * liquidWeight;
     const fruitSugar = fruitWeight * (fruitSugarRatio / 100);
@@ -780,13 +809,13 @@ function autoCalculate() {
     
     if (factor === 'starter') {
         starter = baseAmount;
-        water = Math.round(starter * 7);
+        water = Math.round(starter * 9);
     } else {
         water = baseAmount;
-        starter = Math.round(water / 7);
+        starter = Math.round(water * 0.10);
     }
     
-    sugar = Math.round(water * 0.1);
+    sugar = Math.round(water * 0.10);
     tea = Math.round(water * 0.01);
     
     document.getElementById('m-starter').value = starter;
@@ -815,6 +844,7 @@ function startNewBatch() {
         window.chillModeActive = false;
         window.chillEndTime = null;
         window.f2Activated = false;
+        window.f2CountdownStarted = false;
         window.f1Locked = false;
         window.f2TargetTime = null;
         
@@ -828,6 +858,11 @@ function startNewBatch() {
         document.getElementById('m-sugar').value = '0';
         document.getElementById('m-starter').value = '0';
         document.getElementById('base-amount').value = '0';
+        document.getElementById('input-temp').value = '';
+        document.getElementById('input-temp-min').value = '';
+        document.getElementById('input-temp-max').value = '';
+        document.getElementById('input-brix').value = '';
+        document.getElementById('input-ph').value = '';
         
         document.getElementById('f2-bottle-volume').value = '1000';
         document.getElementById('f2-fill-slider').value = '90';
@@ -853,9 +888,10 @@ function startNewBatch() {
         document.getElementById('add-to-calendar-f2').classList.add('opacity-50', 'cursor-not-allowed');
         document.getElementById('f2-chill-status').textContent = '气泡锁定中，请勿开瓶';
         document.getElementById('f2-chill-timer').textContent = '24:00:00';
-        document.getElementById('f2-time-remaining').innerText = '等待数据...';
+        document.getElementById('f2-time-remaining').innerText = '待启动';
         document.getElementById('f2-co2-value').textContent = '--';
         document.getElementById('f2-chill-hint').innerText = '';
+        document.getElementById('f2-start-countdown-btn').classList.remove('hidden');
         
         const mask = document.getElementById('f2-disabled-mask');
         if (mask) {
@@ -897,10 +933,8 @@ function updateUIGuide() {
         leftPanel.classList.add('lg:col-span-2');
         leftPanel.classList.remove('lg:col-span-3');
         
-        document.querySelector('.lg\\:col-span-6').classList.add('lg:col-span-7');
-        document.querySelector('.lg\\:col-span-6').classList.remove('lg:col-span-6');
-        
-        document.querySelector('.lg\\:col-span-3').classList.add('lg:col-span-3');
+        document.querySelector('.lg\\:col-span-6, .lg\\:col-span-7').classList.add('lg:col-span-7');
+        document.querySelector('.lg\\:col-span-6, .lg\\:col-span-7').classList.remove('lg:col-span-6');
         
         recipePanel.classList.add('border-amber-900/20');
         recipePanel.classList.remove('border-gray-800');
@@ -921,6 +955,47 @@ function updateUIGuide() {
     }
 }
 
+function validateForm(engineMode) {
+    const selectedTime = document.getElementById('input-time').value;
+    if (!selectedTime) {
+        alert("请选择时间");
+        return false;
+    }
+    
+    const selectedDate = new Date(selectedTime);
+    const now = new Date();
+    if (selectedDate > now) {
+        alert("时间不能晚于当前系统时间，请选择过去或现在的时间");
+        return false;
+    }
+    
+    if (engineMode === 'diurnal') {
+        const tempMin = document.getElementById('input-temp-min').value;
+        const tempMax = document.getElementById('input-temp-max').value;
+        if (tempMin === '' || tempMax === '') {
+            alert("昼夜模式必须填写最低温和最高温");
+            return false;
+        }
+    } else {
+        const temp = document.getElementById('input-temp').value;
+        if (isNaN(parseFloat(temp))) {
+            alert("请输入温度");
+            return false;
+        }
+    }
+    
+    if (engine.logs.length === 0) {
+        const brix = document.getElementById('input-brix').value;
+        const ph = document.getElementById('input-ph').value;
+        if (brix === '' || ph === '') {
+            alert("首条记录必须填写Brix和pH，作为发酵基准点");
+            return false;
+        }
+    }
+    
+    return true;
+}
+
 function initEventListeners() {
     document.getElementById('btn-auto-calc').onclick = autoCalculate;
     document.getElementById('btn-new-batch').onclick = startNewBatch;
@@ -932,13 +1007,15 @@ function initEventListeners() {
             alert('至少需要2条记录才能结束一发');
             return;
         }
-        if (confirm('确定结束一发发酵吗？\n确认后F1数据将锁死，不可修改，\n并自动开启F2二发模块。')) {
+        if (confirm('确定结束一发发酵吗？\n确认后F1数据将锁死，不可修改，\n并自动开启F2二发模块。\n注意：二发倒计时需在填好备料后手动启动。')) {
             window.f1Locked = true;
-            activateF2();
+            unlockF2UI();
             renderResults(engine.calculate());
             saveToStorage();
         }
     };
+    
+    document.getElementById('f2-start-countdown-btn').onclick = startF2Countdown;
     
     const btnPoint = document.getElementById('mode-point');
     const btnDiurnal = document.getElementById('mode-diurnal');
@@ -964,6 +1041,8 @@ function initEventListeners() {
     document.getElementById('btn-submit').onclick = () => {
         if (window.f1Locked) return;
         
+        if (!validateForm(engine.mode)) return;
+        
         const data = {
             time: document.getElementById('input-time').value,
             mode: engine.mode,
@@ -973,9 +1052,6 @@ function initEventListeners() {
             brix: document.getElementById('input-brix').value,
             ph: document.getElementById('input-ph').value
         };
-        if (!data.time || (engine.mode === 'point' && isNaN(data.temp)) || (engine.mode === 'diurnal' && (isNaN(data.tempMin) || isNaN(data.tempMax)))) {
-            alert("必填项未录入（时间与温度）"); return;
-        }
         const params = engine.initParams();
         updateUI(params);
         const result = engine.addRecord(data);
@@ -1090,13 +1166,18 @@ window.onload = () => {
         if (mask) {
             mask.style.display = 'none';
         }
-        const calendarBtn = document.getElementById('add-to-calendar-f2');
-        const chillBtn = document.getElementById('f2-start-chill');
-        calendarBtn.disabled = false;
-        calendarBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-        chillBtn.disabled = false;
-        chillBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-        calculateF2Pressure();
+        document.getElementById('f2-start-countdown-btn').classList.remove('hidden');
+        
+        if (window.f2CountdownStarted) {
+            document.getElementById('f2-start-countdown-btn').classList.add('hidden');
+            const calendarBtn = document.getElementById('add-to-calendar-f2');
+            const chillBtn = document.getElementById('f2-start-chill');
+            calendarBtn.disabled = false;
+            calendarBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            chillBtn.disabled = false;
+            chillBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            calculateF2Pressure();
+        }
     } else {
         const mask = document.getElementById('f2-disabled-mask');
         if (mask) {
@@ -1132,7 +1213,7 @@ window.onload = () => {
         if (engine.logs.length > 0) {
             const result = engine.calculate();
             updateTimeDisplay(result);
-            if (window.f2Activated) {
+            if (window.f2Activated && window.f2CountdownStarted) {
                 calculateF2Pressure();
             }
         }
