@@ -82,7 +82,7 @@
                     <p id="f1-prediction-text" class="text-sm mono text-white">等待首条数据录入...</p>
                 </div>
             </div>
-            <button id="f1-add-calendar" class="hidden px-3 py-1.5 bg-amber-600/20 text-amber-400 text-xs font-bold rounded-lg border border-amber-600/30 hover:bg-amber-600/30 transition-all">
+            <button id="add-to-calendar-f1" class="hidden px-3 py-1.5 bg-amber-600/20 text-amber-400 text-xs font-bold rounded-lg border border-amber-600/30 hover:bg-amber-600/30 transition-all">
                 添加到日历
             </button>
         </div>
@@ -162,18 +162,27 @@
                                 </div>
                             </div>
                             
-                            <div class="space-y-2 text-[11px] mono bg-black/50 p-3 rounded-lg border border-gray-800/50">
-                                <div class="flex justify-between">
-                                    <span class="text-gray-500">初始 Brix</span>
-                                    <span id="theory-brix" class="text-amber-400">0.00</span>
+                            <div class="space-y-3 text-[11px] mono bg-black/50 p-3 rounded-lg border border-gray-800/50">
+                                <div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-500">初始 Brix</span>
+                                        <span id="theory-brix" class="text-amber-400">0.00</span>
+                                    </div>
+                                    <p class="text-[9px] text-gray-600 mt-1">推荐: 8.0-10.0</p>
                                 </div>
-                                <div class="flex justify-between">
-                                    <span class="text-gray-500">茶底浓度 (氮源)</span>
-                                    <span id="tea-status" class="text-green-400">0.60%</span>
+                                <div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-500">茶底浓度 (氮源)</span>
+                                        <span id="tea-status" class="text-green-400">0.60%</span>
+                                    </div>
+                                    <p class="text-[9px] text-gray-600 mt-1">推荐: 0.8%-1.5%</p>
                                 </div>
-                                <div class="flex justify-between">
-                                    <span class="text-gray-500">启动液比例</span>
-                                    <span id="starter-pct" class="text-blue-400">18%</span>
+                                <div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-500">启动液比例</span>
+                                        <span id="starter-pct" class="text-blue-400">18%</span>
+                                    </div>
+                                    <p class="text-[9px] text-gray-600 mt-1">推荐: 15%-25%</p>
                                 </div>
                             </div>
                         </div>
@@ -376,7 +385,21 @@
         
         <div class="f2-grid">
             <div>
-                <h3 class="text-[10px] md:text-xs font-bold text-gray-400 uppercase mb-4">输入区</h3>
+                <h3 class="text-[10px] md:text-xs font-bold text-gray-400 uppercase mb-4">装瓶基准</h3>
+                
+                <div class="f2-card mb-4 bg-blue-900/20 border-blue-800/30">
+                    <label class="text-[10px] md:text-xs text-blue-400 block mb-2">装瓶实测 Brix</label>
+                    <input type="number" id="f2-bottling-brix" value="5.0" step="0.1" class="w-full bg-black border border-blue-800 rounded-lg p-2.5 text-blue-300 mono text-sm">
+                    <p class="text-[10px] text-gray-600 mt-1">自动填充 F1 最后值，可手动修改</p>
+                </div>
+                
+                <div class="f2-card mb-4 bg-purple-900/20 border-purple-800/30">
+                    <label class="text-[10px] md:text-xs text-purple-400 block mb-2">装瓶实测 pH</label>
+                    <input type="number" id="f2-bottling-ph" value="3.5" step="0.1" class="w-full bg-black border border-purple-800 rounded-lg p-2.5 text-purple-300 mono text-sm">
+                    <p class="text-[10px] text-gray-600 mt-1">自动填充 F1 最后值，可手动修改</p>
+                </div>
+                
+                <h3 class="text-[10px] md:text-xs font-bold text-gray-400 uppercase mb-4 mt-6">输入区</h3>
                 
                 <div class="f2-card mb-4">
                     <label class="text-[10px] md:text-xs text-gray-500 block mb-2">瓶子总容量 (ml)</label>
@@ -493,6 +516,9 @@
                     <p id="f2-chill-hint" class="text-[10px] md:text-xs mono text-blue-300 text-center mt-3 pt-3 border-t border-gray-800"></p>
                     
                     <div class="mt-4 pt-4 border-t border-gray-800">
+                        <button id="add-to-calendar-f2" class="w-full py-2 bg-green-600/20 text-green-400 text-xs font-bold rounded-lg border border-green-600/30 hover:bg-green-600/30 transition-all mb-3">
+                            添加提醒到日历
+                        </button>
                         <button id="f2-start-chill" class="w-full py-2.5 bg-blue-600/20 text-blue-400 text-xs font-bold rounded-lg border border-blue-600/30 hover:bg-blue-600/30 transition-all">
                             开始冷藏
                         </button>
@@ -620,6 +646,16 @@
             });
         }
     </script>
+    
+    <div class="fixed bottom-0 left-0 right-0 bg-gray-950/95 border-t border-gray-800 backdrop-blur-md p-4 z-50">
+        <div class="max-w-[1440px] mx-auto">
+            <button id="btn-new-batch-footer" class="w-full py-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-black font-black rounded-xl transition-all shadow-lg shadow-amber-600/20">
+                开始新批次
+            </button>
+        </div>
+    </div>
+    
+    <div style="height: 80px;"></div>
 </body>
 </html>
 <!-- trigger deployment -->

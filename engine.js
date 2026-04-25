@@ -24,11 +24,37 @@ class KombuchaEngineV4 {
         
         this.starterPct = ((mSt / this.totalMass) * 100);
 
+        let brixClass = 'text-green-400';
+        if (this.initBrix < 8.0 || this.initBrix > 10.0) {
+            brixClass = 'text-yellow-400';
+        }
+        if (this.initBrix < 6.0 || this.initBrix > 12.0) {
+            brixClass = 'text-red-400 font-bold';
+        }
+
+        let teaClass = 'text-green-400';
+        if (this.teaPct < 0.8 || this.teaPct > 1.5) {
+            teaClass = 'text-yellow-400';
+        }
+        if (this.teaPct < 0.5 || this.teaPct > 2.0) {
+            teaClass = 'text-red-400 font-bold';
+        }
+
+        let starterClass = 'text-green-400';
+        if (this.starterPct < 15 || this.starterPct > 25) {
+            starterClass = 'text-yellow-400';
+        }
+        if (this.starterPct < 10 || this.starterPct > 35) {
+            starterClass = 'text-red-400 font-bold';
+        }
+
         return {
             theoryBrix: this.initBrix.toFixed(2),
+            brixClass: brixClass,
             teaStatus: this.teaPct.toFixed(2) + '%',
-            teaClass: this.teaPct < 0.5 ? 'text-red-400 font-bold' : 'text-green-400',
+            teaClass: teaClass,
             starterPct: this.starterPct.toFixed(0) + '%',
+            starterClass: starterClass,
             avValue: this.avRatio.toFixed(3)
         };
     }
@@ -107,9 +133,7 @@ class KombuchaEngineV4 {
             }
 
             const consumed = this.initBrix - currentBrix;
-            const efficiency = Math.min(1.0, this.avRatio * 10);
-            const abv = consumed * 0.5 * (1 - efficiency);
-            const tta = consumed * 0.5 * efficiency;
+            const abv = consumed * 0.45;
 
             processed.push({
                 log,

@@ -21,6 +21,8 @@ function saveToStorage() {
     };
     
     const f2Data = {
+        'bottling-brix': document.getElementById('f2-bottling-brix').value,
+        'bottling-ph': document.getElementById('f2-bottling-ph').value,
         'bottle-volume': document.getElementById('f2-bottle-volume').value,
         'fill-slider': document.getElementById('f2-fill-slider').value,
         'fruit-type': document.getElementById('f2-fruit-type').value,
@@ -57,6 +59,8 @@ function loadFromStorage() {
         
         if (data.f2Data) {
             const f2Map = {
+                'bottling-brix': 'f2-bottling-brix',
+                'bottling-ph': 'f2-bottling-ph',
                 'bottle-volume': 'f2-bottle-volume',
                 'fill-slider': 'f2-fill-slider',
                 'fruit-type': 'f2-fruit-type',
@@ -99,27 +103,32 @@ function loadFromStorage() {
 }
 
 function updateUI(params) {
-    document.getElementById('theory-brix').innerText = params.theoryBrix;
+    const brixEl = document.getElementById('theory-brix');
+    brixEl.innerText = params.theoryBrix;
+    brixEl.className = params.brixClass || 'text-amber-400';
     
     const teaEl = document.getElementById('tea-status');
     teaEl.innerText = params.teaStatus;
-    teaEl.className = params.teaClass;
+    teaEl.className = params.teaClass || 'text-green-400';
     
-    document.getElementById('starter-pct').innerText = params.starterPct;
+    const starterEl = document.getElementById('starter-pct');
+    starterEl.innerText = params.starterPct;
+    starterEl.className = params.starterClass || 'text-blue-400';
+    
     document.getElementById('av-value').innerText = params.avValue;
 }
 
 function calculateF1BottlingPrediction() {
     if (engine.logs.length < 2) {
         document.getElementById('f1-prediction-text').innerText = '等待首条数据录入...';
-        document.getElementById('f1-add-calendar').classList.add('hidden');
+        document.getElementById('add-to-calendar-f1').classList.add('hidden');
         return;
     }
     
     const lastTwoLogs = engine.logs.slice(-2);
     if (lastTwoLogs.length < 2) {
         document.getElementById('f1-prediction-text').innerText = '等待更多数据录入...';
-        document.getElementById('f1-add-calendar').classList.add('hidden');
+        document.getElementById('add-to-calendar-f1').classList.add('hidden');
         return;
     }
     
@@ -131,7 +140,7 @@ function calculateF1BottlingPrediction() {
     
     if (timeDiff === 0 || brixDrop === 0) {
         document.getElementById('f1-prediction-text').innerText = '等待更多数据录入...';
-        document.getElementById('f1-add-calendar').classList.add('hidden');
+        document.getElementById('add-to-calendar-f1').classList.add('hidden');
         return;
     }
     
@@ -142,7 +151,7 @@ function calculateF1BottlingPrediction() {
     
     if (brixToDrop <= 0) {
         document.getElementById('f1-prediction-text').innerText = '已达黄金风味点，建议立即装瓶!';
-        document.getElementById('f1-add-calendar').classList.remove('hidden');
+        document.getElementById('add-to-calendar-f1').classList.remove('hidden');
         return;
     }
     
@@ -161,11 +170,11 @@ function calculateF1BottlingPrediction() {
     predictionText += `${minutes} 分钟后`;
     
     document.getElementById('f1-prediction-text').innerText = predictionText;
-    document.getElementById('f1-add-calendar').classList.remove('hidden');
+    document.getElementById('add-to-calendar-f1').classList.remove('hidden');
     
-    document.getElementById('f1-add-calendar').onclick = function() {
+    document.getElementById('add-to-calendar-f1').onclick = function() {
         const targetTime = new Date(Date.now() + hoursToTarget * 3600000);
-        const url = `data:text/calendar;charset=utf-8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ASUMMARY:${encodeURIComponent('康普茶黄金装瓶提醒')}%0ADTSTART:${targetTime.toISOString().replace(/-/g, '').replace(/:/g, '').substring(0, 15)}%0ADURATION:PT2H%0AEND:VEVENT%0AEND:VCALENDAR`;
+        const url = `data:text/calendar;charset=utf-8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ASUMMARY:${encodeURIComponent('康普茶黄金装瓶提醒')}%0ADTSTART:${targetTime.toISOString().replace(/-/g, '').replace(/:/g, '').substring(0, 15)}%0ADURATION:PT2H%0ADESCRIPTION:康普茶已达黄金风味点，准备装瓶二发。%0AEND:VEVENT%0AEND:VCALENDAR`;
         const a = document.createElement('a');
         a.href = url;
         a.download = 'kombucha-bottling.ics';
@@ -503,20 +512,10 @@ function calculateF2Pressure() {
     
     const fruitSugarRatio = FRUIT_SUGAR_RATIO[fruitType] || 0;
     
-    let latestBrix = 5.0;
-    if (engine.logs.length > 0) {
-        const lastRecord = engine.logs[engine.logs.length - 1];
-        if (lastRecord.brix !== undefined && !isNaN(lastRecord.brix)) {
-            latestBrix = lastRecord.brix;
-        } else {
-            const processed = engine.calculate().processed;
-            if (processed.length > 0) {
-                latestBrix = processed[processed.length - 1].realBrix || 5.0;
-            }
-        }
-    }
+    const bottlingBrix = parseFloat(document.getElementById('f2-bottling-brix').value) || 5.0;
+    const bottlingPh = parseFloat(document.getElementById('f2-bottling-ph').value) || 3.5;
     
-    const residualSugar = latestBrix * 0.01 * 0.2 * liquidWeight;
+    const residualSugar = bottlingBrix * 0.01 * 0.2 * liquidWeight;
     const fruitSugar = fruitWeight * (fruitSugarRatio / 100);
     const totalSugar = residualSugar + fruitSugar + extraSugar;
     
@@ -762,6 +761,7 @@ function updateUIGuide() {
 function initEventListeners() {
     document.getElementById('btn-auto-calc').onclick = autoCalculate;
     document.getElementById('btn-new-batch').onclick = startNewBatch;
+    document.getElementById('btn-new-batch-footer').onclick = startNewBatch;
     document.getElementById('toggle-recipe').onclick = toggleRecipePanel;
     
     const btnPoint = document.getElementById('mode-point');
@@ -841,6 +841,27 @@ function initEventListeners() {
         document.getElementById('f2-extra-sugar').value = Math.round(3 * ratio);
         calculateF2Pressure();
         showToast('已应用推荐配方');
+    });
+
+    document.getElementById('add-to-calendar-f2').addEventListener('click', () => {
+        const timeRemaining = document.getElementById('f2-time-remaining').innerText;
+        const match = timeRemaining.match(/(\d+)\s*天?\s*(\d+)?\s*小时?\s*(\d+)?\s*分钟?/);
+        if (!match) {
+            alert('请先输入数据获取预测时间');
+            return;
+        }
+        
+        let hoursToAdd = 0;
+        if (match[1]) hoursToAdd += parseInt(match[1]) * 24;
+        if (match[2]) hoursToAdd += parseInt(match[2]);
+        if (match[3]) hoursToAdd += parseInt(match[3]) / 60;
+        
+        const targetTime = new Date(Date.now() + hoursToAdd * 3600000);
+        const url = `data:text/calendar;charset=utf-8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ASUMMARY:${encodeURIComponent('康普茶二发装瓶提醒')}%0ADTSTART:${targetTime.toISOString().replace(/-/g, '').replace(/:/g, '').substring(0, 15)}%0ADURATION:PT1H%0ADESCRIPTION:康普茶二发发酵完成，建议检查压力后冷藏。%0AEND:VEVENT%0AEND:VCALENDAR`;
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'kombucha-f2-reminder.ics';
+        a.click();
     });
 }
 
