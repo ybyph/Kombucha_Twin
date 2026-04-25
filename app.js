@@ -155,11 +155,14 @@ function recomputeAndRender() {
 
 function updateDashboard(result) {
     try {
-        const safe = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
-        
-        if (!result || engine.logs.length === 0) {
+        const safe = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = val;
+        };
+
+        if (!result || !engine.logs || engine.logs.length === 0) {
             safe('elapsed-time', '等待首条录入...');
-            safe('remaining-time', '-');
+            safe('remaining-time', '0');
             safe('current-brix', '--');
             safe('bio-hours', '0.0 h');
             safe('tta-est', '0.00');
@@ -174,63 +177,105 @@ function updateDashboard(result) {
             if (cal1) cal1.classList.add('hidden');
             return;
         }
-        
+
         const firstLog = engine.logs[0];
+        if (!firstLog || !firstLog.timestamp) {
+            safe('elapsed-time', '等待首条录入...');
+            safe('remaining-time', '0');
+            return;
+        }
+
         const now = new Date();
         const elapsedMs = now - firstLog.timestamp;
-        
-        const days = Math.floor(elapsedMs / 86400000);
-        const hours = Math.floor((elapsedMs % 86400000) / 3600000);
-        const minutes = Math.floor((elapsedMs % 3600000) / 60000);
-        
-        if (days > 0) {
-            safe('elapsed-time', `第 ${days} 天 ${hours} 小时 ${minutes} 分钟`);
-        } else if (hours > 0) {
-            safe('elapsed-time', `${hours} 小时 ${minutes} 分钟`);
+        if (!isFinite(elapsedMs) || elapsedMs < 0) {
+            safe('elapsed-time', '0 分钟');
         } else {
-            safe('elapsed-time', `${minutes} 分钟`);
+            const days = Math.floor(elapsedMs / 86400000);
+            const hours = Math.floor((elapsedMs % 86400000) / 3600000);
+            const minutes = Math.floor((elapsedMs % 3600000) / 60000);
+            if (days > 0) {
+                safe('elapsed-time', `第 ${days} 天 ${hours} 小时 ${minutes} 分钟`);
+            } else if (hours > 0) {
+                safe('elapsed-time', `${hours} 小时 ${minutes} 分钟`);
+            } else {
+                safe('elapsed-time', `${minutes} 分钟`);
+            }
         }
-        
-        const bioH = isFinite(result.bioHours) ? result.bioHours : 0;
+
+        const bioH = (result && isFinite(result.bioHours)) ? result.bioHours : 0;
         safe('bio-hours', bioH.toFixed(1) + ' h');
-        
-        const tta = isFinite(result.tta) ? result.tta : 0;
+
+        const tta = (result && isFinite(result.tta)) ? result.tta : 0;
         safe('tta-est', tta.toFixed(2));
-        
+
         let abv = 0;
         try {
-            const firstBrixLog = engine.logs.find(l => l.brix !== null && l.brix !== undefined);
-            const f1InitBrix = firstBrixLog ? firstBrixLog.brix : 10.0;
-            let lastValidBrix = f1InitBrix;
-            for (let i = engine.logs.length - 1; i >= 0; i--) {
-                if (engine.logs[i].brix !== null && engine.logs[i].brix !== undefined) {
-                    lastValidBrix = engine.logs[i].brix;
+            const logs = engine.logs || [];
+            let firstBrix = 0;
+            for (let i = 0; i < logs.length; i++) {
+                if (logs[i] && logs[i].brix !== null && logs[i].brix !== undefined && isFinite(logs[i].brix)) {
+                    firstBrix = logs[i].brix;
                     break;
                 }
             }
-            abv = Math.max(0, (f1InitBrix - lastValidBrix) * 0.5);
-            if (!isFinite(abv)) abv = 0;
+            if (firstBrix === 0 && logs.length > 0 && logs[0]) {
+                firstBrix = (logs[0].brix !== null && logs[0].brix !== undefined && isFinite(logs[0].brix)) ? logs[0].brix : 10.0;
+            }
+
+            let lastValidBrix = 0;
+            for (let i = logs.length - 1; i >= 0; i--) {
+                if (logs[i] && logs[i].brix !== null && logs[i].brix !== undefined && isFinite(logs[i].brix)) {
+                    lastValidBrix = logs[i].brix;
+                    break;
+                }
+            }
+            if (lastValidBrix === 0) {
+                lastValidBrix = firstBrix;
+            }
+
+            const brixDrop = firstBrix - lastValidBrix;
+            if (isNaN(brixDrop) || !isFinite(brixDrop)) {
+                abv = 0;
+            } else {
+                abv = Math.max(0, brixDrop * 0.5);
+            }
+            if (isNaN(abv) || !isFinite(abv)) {
+                abv = 0;
+            }
         } catch (e) {
+            console.error('ABV calculation error:', e);
             abv = 0;
         }
         safe('abv-est', abv.toFixed(2) + '%');
         const abvEl = document.getElementById('abv-est');
-        if (abvEl) abvEl.className = result.abvClass || 'text-3xl mono font-black text-red-500';
-        
+        if (abvEl) abvEl.className = 'text-3xl mono font-black text-red-500';
+
         const action = document.getElementById('smart-action');
-        if (action) { action.innerText = result.actionText; action.className = result.actionClass; }
-        
-        if (result.processed && result.processed.length > 0) {
+        if (action) {
+            action.innerText = (result && result.actionText) ? result.actionText : '环境就绪，等待发酵';
+            action.className = (result && result.actionClass) ? result.actionClass : 'text-lg font-bold text-green-500 bg-green-900/20 px-4 py-2 rounded-lg border border-green-900/30';
+        }
+
+        if (result && result.processed && result.processed.length > 0) {
             const latest = result.processed[result.processed.length - 1];
-            const cb = isFinite(latest.realBrix) ? latest.realBrix : 0;
+            const cb = (latest && isFinite(latest.realBrix)) ? latest.realBrix : 0;
             safe('current-brix', cb.toFixed(1));
+        } else {
+            const lastLog = engine.logs[engine.logs.length - 1];
+            if (lastLog && lastLog.brix !== null && lastLog.brix !== undefined && isFinite(lastLog.brix)) {
+                safe('current-brix', lastLog.brix.toFixed(1));
+            }
         }
-        
+
         let remH = 0;
-        if (result.remainingHours !== undefined && isFinite(result.remainingHours) && result.remainingHours > 0) {
-            remH = result.remainingHours;
+        try {
+            if (result && result.remainingHours !== undefined && isFinite(result.remainingHours) && result.remainingHours > 0) {
+                remH = result.remainingHours;
+            }
+        } catch (e) {
+            remH = 0;
         }
-        
+
         if (remH > 0) {
             const remDays = Math.floor(remH / 24);
             const remHours = Math.floor(remH % 24);
@@ -243,16 +288,21 @@ function updateDashboard(result) {
                 safe('remaining-time', `${remMins}m`);
             }
         } else {
-            safe('remaining-time', '-');
+            safe('remaining-time', '0');
         }
-        
+
         updateF1Prediction(result);
     } catch (e) {
         console.error('updateDashboard error:', e);
-        const safe = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
-        safe('elapsed-time', '-');
-        safe('remaining-time', '-');
+        const safe = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = val;
+        };
+        safe('elapsed-time', '0');
+        safe('remaining-time', '0');
         safe('current-brix', '--');
+        safe('bio-hours', '0.0 h');
+        safe('tta-est', '0.00');
         safe('abv-est', '0.00%');
     }
 }
