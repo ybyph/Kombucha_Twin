@@ -3,151 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kombucha Twin Pro v4.0</title>
+    <title>Kombucha Twin Pro v4.5</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #0d0d0d; color: #e5e5e5; font-family: -apple-system, sans-serif; }
-        .glass-card { background: rgba(26, 26, 26, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border-radius: 16px; }
-        input, select { background-color: #000 !important; border: 1px solid #333 !important; color: #fff !important; border-radius: 8px; padding: 10px; width: 100%; outline: none; }
-        input:focus { border-color: #fbbf24 !important; }
-        .stat-label { font-size: 10px; color: #6b7280; font-weight: 800; text-transform: uppercase; margin-bottom: 4px; }
-        .stat-value { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;800&display=swap');
+        body { background-color: #080808; color: #e5e5e5; font-family: -apple-system, sans-serif; }
+        .glass-card { background: rgba(20, 20, 20, 0.8); border: 1px solid rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px); border-radius: 20px; }
+        input { background-color: #000 !important; border: 1px solid #262626 !important; color: #fff !important; border-radius: 10px; padding: 12px; width: 100%; outline: none; transition: all 0.2s; font-family: 'JetBrains Mono', monospace; }
+        input:focus { border-color: #fbbf24 !important; box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.1); }
+        .stat-label { font-size: 10px; color: #6b7280; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+        .stat-value { font-family: 'JetBrains Mono', monospace; font-weight: 800; }
+        .btn-primary { background: #fbbf24; color: #000; font-weight: 900; border-radius: 12px; transition: all 0.1s; }
+        .btn-primary:active { transform: scale(0.96); }
+        .history-item { background: rgba(255, 255, 255, 0.03); border-radius: 12px; padding: 14px; margin-bottom: 10px; border-left: 4px solid #fbbf24; }
     </style>
 </head>
-<body class="p-4 max-w-lg mx-auto pb-24">
+<body class="p-6 max-w-lg mx-auto pb-32">
 
-    <header class="flex justify-between items-center mb-8">
+    <header class="flex justify-between items-start mb-10">
         <div>
-            <h1 class="text-2xl font-black italic tracking-tighter text-white">KOMBUCHA <span class="text-amber-500">TWIN</span></h1>
-            <p class="text-[10px] text-gray-500 font-bold">V4.0 - PHYSICAL ENGINE ACTIVE</p>
+            <h1 class="text-3xl font-black italic tracking-tighter text-white leading-none">KOMBUCHA <span class="text-amber-500">TWIN</span></h1>
+            <p class="text-[10px] text-gray-500 font-bold mt-2 uppercase tracking-widest">V4.5 – Professional Lab Grade</p>
         </div>
-        <button onclick="resetBatch()" class="text-[10px] bg-red-900/20 text-red-500 border border-red-900/50 px-3 py-1 rounded-full uppercase font-black">重置批次</button>
+        <button onclick="resetBatch()" class="text-[9px] bg-red-950/30 text-red-500 border border-red-900/40 px-3 py-1.5 rounded-full font-black hover:bg-red-900/50">重置批次</button>
     </header>
 
-    <section class="glass-card p-5 mb-4 border-l-4 border-blue-500">
-        <h3 class="stat-label text-blue-400">容器物理约束</h3>
-        <div class="grid grid-cols-2 gap-6 mt-2">
+    <section class="glass-card p-6 mb-4">
+        <h3 class="stat-label text-blue-400">容器物理约束 / Mass Transfer</h3>
+        <div class="grid grid-cols-2 gap-6 mt-4">
             <div>
-                <label class="stat-label">液位高度 (cm)</label>
-                <input type="number" id="m-height" value="18.5" step="0.1" oninput="runGlobalLogic()">
+                <label class="stat-label text-[9px]">敞口直径 (cm)</label>
+                <input type="number" id="m-diameter" value="15.0" step="0.1" oninput="runLogic()">
             </div>
             <div>
-                <label class="stat-label">A/V 传质比</label>
-                <div id="av-display" class="stat-value text-2xl text-green-400">0.054</div>
+                <label class="stat-label text-[9px]">液位高度 (cm)</label>
+                <input type="number" id="m-height" value="18.5" step="0.1" oninput="runLogic()">
+            </div>
+        </div>
+        <div class="grid grid-cols-3 gap-2 mt-6 border-t border-white/5 pt-5 text-center">
+            <div>
+                <p class="stat-label">表面积 (A)</p>
+                <p id="a-area" class="stat-value text-sm text-gray-300">--</p>
+            </div>
+            <div>
+                <p class="stat-label">总容量 (V)</p>
+                <p id="v-volume" class="stat-value text-sm text-gray-300">--</p>
+            </div>
+            <div>
+                <p class="stat-label text-green-400">A/V Ratio</p>
+                <p id="av-display" class="stat-value text-xl text-green-400">0.054</p>
             </div>
         </div>
     </section>
 
-    <section class="glass-card p-5 mb-4">
-        <h3 class="stat-label text-amber-500">新手配方推算 (1:7)</h3>
-        <div class="flex gap-3 mt-2">
+    <section class="glass-card p-6 mb-4">
+        <h3 class="stat-label text-amber-500">新手配方推算 / Recipe (1:7)</h3>
+        <div class="flex gap-3 mt-4">
             <div class="flex-1">
-                <label class="stat-label text-[8px]">以启动液为基准 (g)</label>
-                <input type="number" id="starter-base" value="300" oninput="calculateRecipe()">
+                <label class="stat-label">启动原液 (g)</label>
+                <input type="number" id="starter-base" value="400" oninput="runLogic()">
             </div>
-            <div class="flex-none pt-4">
-                <button onclick="applyRecipe()" class="bg-amber-500 text-black px-6 py-2 rounded-xl font-black text-sm active:scale-95 transition-transform">应用</button>
+            <div class="flex-none pt-6">
+                <button onclick="applyRecipe()" class="btn-primary px-6 py-3 text-sm uppercase">应用</button>
             </div>
         </div>
-        <div class="grid grid-cols-2 gap-2 mt-4 text-[11px] font-mono text-gray-400 border-t border-white/5 pt-4">
-            <div>纯水: <span id="r-water" class="text-white">--</span>g</div>
-            <div>启动液: <span id="r-starter" class="text-white">--</span>g</div>
-            <div>白糖: <span id="r-sugar" class="text-white">--</span>g</div>
-            <div>干茶: <span id="r-tea" class="text-white">--</span>g</div>
+        <div class="grid grid-cols-2 gap-y-4 gap-x-6 mt-6 border-t border-white/5 pt-5">
+            <div><p class="stat-label text-[8px]">纯水</p><p id="r-water" class="stat-value text-white text-lg">--</p></div>
+            <div><p class="stat-label text-[8px]">启动原液</p><p id="r-starter" class="stat-value text-white text-lg">--</p></div>
+            <div><p class="stat-label text-[8px]">白糖 (10%)</p><p id="r-sugar" class="stat-value text-amber-200 text-lg">--</p></div>
+            <div><p class="stat-label text-[8px]">干茶 (1%)</p><p id="r-tea" class="stat-value text-emerald-200 text-lg">--</p></div>
         </div>
     </section>
 
-    <section class="grid grid-cols-2 gap-4 mb-4 text-center">
-        <div class="glass-card p-4 border-b-4 border-amber-600">
-            <p class="stat-label">估计 ABV</p>
-            <p id="abv-display" class="stat-value text-3xl text-amber-500">0.00%</p>
+    <section class="grid grid-cols-2 gap-4 mb-4">
+        <div class="glass-card p-6 border-b-4 border-amber-600">
+            <p class="stat-label">当前估计 ABV</p>
+            <p id="abv-display" class="stat-value text-4xl text-amber-500">0.00%</p>
         </div>
-        <div class="glass-card p-4 border-b-4 border-gray-600">
-            <p class="stat-label">预计剩余</p>
-            <p id="time-display" class="stat-value text-3xl text-white">--</p>
+        <div class="glass-card p-6 border-b-4 border-blue-900/30">
+            <p class="stat-label">预计剩余时间</p>
+            <p id="time-display" class="stat-value text-4xl text-white">--</p>
         </div>
     </section>
 
-    <section class="glass-card p-5 mb-8">
-        <h3 class="stat-label">采样日志矩阵</h3>
-        <div class="grid grid-cols-2 gap-3 mt-2">
+    <section class="glass-card p-6 mb-10">
+        <h3 class="stat-label">采样日志矩阵 / Sampling Log</h3>
+        <div class="grid grid-cols-2 gap-4 mt-4">
             <div>
                 <label class="stat-label">BRIX %</label>
                 <input type="number" id="in-brix" placeholder="10.0" step="0.1">
             </div>
             <div>
                 <label class="stat-label">温度 °C</label>
-                <input type="number" id="in-temp" value="25">
+                <input type="number" id="in-temp" value="26">
             </div>
         </div>
-        <button onclick="addLog()" class="w-full bg-white text-black font-black py-3 rounded-xl mt-4 hover:bg-gray-200 uppercase tracking-widest">Append Log</button>
+        <button onclick="addLog()" class="w-full bg-white text-black font-black py-4 rounded-xl mt-6 hover:bg-gray-200 uppercase tracking-widest text-sm">Append Log</button>
     </section>
 
     <div id="log-container" class="space-y-3"></div>
 
     <script>
-        let state = JSON.parse(localStorage.getItem('kombucha_pro_logs')) || [];
+        let state = JSON.parse(localStorage.getItem('kb_pro_v45')) || [];
 
-        function runGlobalLogic() {
-            // 1. A/V 物理计算
+        function runLogic() {
+            // 1. 物理计算 (圆柱体)
+            const d = parseFloat(document.getElementById('m-diameter').value) || 0;
             const h = parseFloat(document.getElementById('m-height').value) || 0;
-            const av = h > 0 ? (1/h).toFixed(3) : "0.000";
-            document.getElementById('av-display').innerText = av;
+            
+            const radius = d / 2;
+            const area = Math.PI * Math.pow(radius, 2); // A = πr²
+            const volume = area * h; // V = A * h
+            const avRatio = volume > 0 ? (area / volume).toFixed(3) : "0.000";
 
-            // 2. 看板计算
+            document.getElementById('a-area').innerText = area.toFixed(1) + " cm²";
+            document.getElementById('v-volume').innerText = (volume / 1000).toFixed(2) + " L";
+            document.getElementById('av-display').innerText = avRatio;
+
+            // 2. 配方计算 (1:7)
+            const base = parseFloat(document.getElementById('starter-base').value) || 0;
+            const water = base * 7;
+            document.getElementById('r-water').innerText = Math.round(water) + "g";
+            document.getElementById('r-starter').innerText = Math.round(base) + "g";
+            document.getElementById('r-sugar').innerText = Math.round(water * 0.1) + "g";
+            document.getElementById('r-tea').innerText = Math.round(water * 0.01) + "g";
+
+            // 3. 看板计算
             if (state.length > 0) {
                 const first = state[0];
                 const last = state[state.length - 1];
-                
-                // ABV 逻辑 (Brix差 * 0.5)
                 const abv = Math.max(0, (first.brix - last.brix) * 0.5);
                 document.getElementById('abv-display').innerText = abv.toFixed(2) + "%";
 
-                // 积温逻辑 (2100度小时)
                 const avgTemp = state.reduce((s, l) => s + l.temp, 0) / state.length;
-                const hoursNeeded = 2100 / (avgTemp || 25);
+                const hoursTotal = 2100 / (avgTemp || 25);
                 const elapsed = (Date.now() - first.time) / 3600000;
-                const remain = Math.max(0, hoursNeeded - elapsed);
+                const remain = Math.max(0, hoursTotal - elapsed);
                 document.getElementById('time-display').innerText = Math.round(remain) + "h";
+            } else {
+                document.getElementById('abv-display').innerText = "0.00%";
+                document.getElementById('time-display').innerText = "--";
             }
-            calculateRecipe();
             renderLogs();
-        }
-
-        function calculateRecipe() {
-            const base = parseFloat(document.getElementById('starter-base').value) || 0;
-            const water = base * 7;
-            document.getElementById('r-water').innerText = Math.round(water);
-            document.getElementById('r-starter').innerText = Math.round(base);
-            document.getElementById('r-sugar').innerText = Math.round(water * 0.1);
-            document.getElementById('r-tea').innerText = Math.round(water * 0.01);
-        }
-
-        function applyRecipe() {
-            alert("配方参数已计算，请按此比例投料");
         }
 
         function addLog() {
             const b = parseFloat(document.getElementById('in-brix').value);
             const t = parseFloat(document.getElementById('in-temp').value) || 25;
-            if (isNaN(b)) return alert("请输入 Brix 数据");
+            if (isNaN(b)) return alert("请输入 Brix 采样数据");
 
             state.push({ brix: b, temp: t, time: Date.now() });
-            localStorage.setItem('kombucha_pro_logs', JSON.stringify(state));
+            localStorage.setItem('kb_pro_v45', JSON.stringify(state));
             document.getElementById('in-brix').value = "";
-            runGlobalLogic();
+            runLogic();
         }
 
         function renderLogs() {
             const container = document.getElementById('log-container');
             container.innerHTML = state.map((log, i) => `
-                <div class="glass-card p-4 flex justify-between items-center animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div class="history-item flex justify-between items-center animate-in fade-in slide-in-from-bottom-1">
                     <div>
-                        <p class="text-[10px] text-gray-500 font-bold uppercase">${new Date(log.time).toLocaleTimeString()}</p>
-                        <p class="text-sm font-mono"><span class="text-amber-500">BRIX:</span> ${log.brix}% | <span class="text-blue-400">TEMP:</span> ${log.temp}°C</p>
+                        <p class="text-[9px] text-gray-500 font-black uppercase mb-1">${new Date(log.time).toLocaleTimeString()}</p>
+                        <p class="stat-value text-sm">BRIX: <span class="text-white">${log.brix}%</span> | TEMP: <span class="text-white">${log.temp}°C</span></p>
                     </div>
-                    <button onclick="deleteLog(${i})" class="text-red-900 hover:text-red-500 transition-colors">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    <button onclick="deleteLog(${i})" class="text-gray-600 hover:text-red-500 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
                 </div>
             `).reverse().join('');
@@ -155,19 +175,23 @@
 
         function deleteLog(i) {
             state.splice(i, 1);
-            localStorage.setItem('kombucha_pro_logs', JSON.stringify(state));
-            runGlobalLogic();
+            localStorage.setItem('kb_pro_v45', JSON.stringify(state));
+            runLogic();
+        }
+
+        function applyRecipe() {
+            alert("配方参数已更新，请参考下方各物料克数进行投料。");
         }
 
         function resetBatch() {
-            if (confirm("确定要删除所有历史记录，开始新的酿造批次吗？")) {
-                localStorage.clear();
+            if (confirm("确定要删除所有历史数据并重置批次吗？")) {
+                localStorage.removeItem('kb_pro_v45');
                 state = [];
                 location.reload();
             }
         }
 
-        window.onload = runGlobalLogic;
+        window.onload = runLogic;
     </script>
 </body>
 </html>
