@@ -558,7 +558,33 @@ function validateForm(engineMode) {
 }
 
 function initEventListeners() {
-    document.getElementById('btn-auto-calc').onclick = autoCalculate;
+    const btnAutoCalc = document.getElementById('btn-auto-calc');
+    if (btnAutoCalc) {
+        btnAutoCalc.addEventListener('click', () => {
+            const factor = document.getElementById('limiting-factor').value;
+            const baseAmount = parseFloat(document.getElementById('base-amount').value) || 0;
+            let water, tea, sugar, starter;
+
+            if (factor === 'starter') {
+                starter = baseAmount;
+                water = baseAmount * 10;
+            } else {
+                water = baseAmount;
+                starter = baseAmount * 0.1;
+            }
+            tea = water * 0.01;
+            sugar = water * 0.1;
+
+            document.getElementById('m-water').value = Math.round(water);
+            document.getElementById('m-tea').value = Math.round(tea);
+            document.getElementById('m-sugar').value = Math.round(sugar);
+            document.getElementById('m-starter').value = Math.round(starter);
+
+            if (typeof updateTheoryBrix === 'function') updateTheoryBrix();
+            alert("配方已应用：纯水 " + Math.round(water) + "g");
+        });
+    }
+
     document.getElementById('btn-new-batch').onclick = startNewBatch;
     document.getElementById('btn-new-batch-footer').onclick = startNewBatch;
     document.getElementById('toggle-recipe').onclick = toggleRecipePanel;
