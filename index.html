@@ -269,29 +269,66 @@
     <style>
         #f2-panel {
             width: 100%;
-            max-width: 1000px;
+            max-width: 1100px;
             margin: 40px auto;
             display: block !important;
             clear: both;
         }
+        @media (min-width: 1024px) {
+            .f2-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 20px;
+            }
+        }
+        @media (max-width: 1023px) {
+            .f2-grid {
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+            }
+        }
+        .f2-card {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .f2-input-group {
+            position: relative;
+        }
+        .f2-ratio-text {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 10px;
+            color: #60a5fa;
+            pointer-events: none;
+        }
+        .f2-pressure-guide {
+            font-size: 9px;
+            line-height: 1.4;
+            color: #6b7280;
+        }
         .f2-additive-container {
             display: flex;
-            flex-direction: row;
-            flex-wrap: wrap;
-            gap: 20px;
-            width: 100%;
+            flex-direction: column;
+            gap: 10px;
         }
         .f2-additive-label {
-            display: block;
-            white-space: normal;
-            line-height: 1.5;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            line-height: 1.4;
         }
     </style>
 </div>
 
 <div id="f2-panel">
     <div class="bg-gradient-to-b from-gray-900/80 to-gray-950 border border-gray-700/50 rounded-2xl p-4 md:p-6 shadow-lg shadow-black/20">
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-2">
                 <div class="w-2 h-2 rounded-full bg-orange-500"></div>
                 <h2 class="text-xs md:text-sm font-black text-orange-400 uppercase">二发压力预测 (F2 Ballistic Engine)</h2>
@@ -300,90 +337,125 @@
                 推荐配方
             </button>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-                <label class="text-[10px] md:text-xs text-gray-500 block mb-1.5">瓶子总容量 (ml)</label>
-                <input type="number" id="f2-bottle-volume" value="1000" class="w-full bg-black border border-gray-800 rounded-lg p-2.5 text-white mono text-sm">
-            </div>
-            <div>
-                <div class="flex justify-between mb-1.5">
-                    <label class="text-[10px] md:text-xs text-gray-500">装瓶比例</label>
-                    <span class="text-[10px] md:text-xs mono text-orange-400" id="f2-fill-percent">90%</span>
-                </div>
-                <input type="range" id="f2-fill-slider" min="50" max="95" value="90" step="5" class="w-full h-3 bg-gray-800 rounded-lg appearance-none cursor-pointer">
-            </div>
-            <div>
-                <label class="text-[10px] md:text-xs text-gray-500 block mb-1.5">水果档次</label>
-                <select id="f2-fruit-type" class="w-full bg-black border border-gray-700 rounded-lg p-2.5 text-white mono text-sm">
-                    <option value="very-low">极低糖 (1.5%)</option>
-                    <option value="low">低糖 (5%)</option>
-                    <option value="medium">中糖 (10%)</option>
-                    <option value="high">高糖 (15%)</option>
-                    <option value="pure">纯糖 (100%)</option>
-                </select>
-            </div>
-            <div>
-                <label class="text-[10px] md:text-xs text-gray-500 block mb-1.5">水果重量 (g)</label>
-                <div class="relative">
-                    <input type="number" id="f2-fruit-weight" value="0" class="w-full bg-black border border-gray-800 rounded-lg p-2.5 text-white mono text-sm">
-                    <div id="f2-fruit-warning" class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-red-500 opacity-0">!</div>
-                    <span id="f2-fruit-ratio" class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] md:text-xs text-blue-400 opacity-0"></span>
-                </div>
-                <p id="f2-fruit-hint" class="text-[10px] text-gray-600 mt-1.5"></p>
-                <p class="text-[10px] text-gray-600 mt-1">建议比例：液体的 5%-10%。超过 20% 会导致发酵空间不足，且纤维过多影响口感。</p>
-            </div>
-            <div>
-                <label class="text-[10px] md:text-xs text-gray-500 block mb-1.5">额外补糖量 (g)</label>
-                <div class="relative">
-                    <input type="number" id="f2-extra-sugar" value="0" class="w-full bg-black border border-gray-800 rounded-lg p-2.5 text-white mono text-sm">
-                    <span id="f2-sugar-ratio" class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] md:text-xs text-blue-400 opacity-0"></span>
-                </div>
-                <p id="f2-sugar-hint" class="text-[10px] text-red-500 mt-1.5 hidden"></p>
-                <p class="text-[10px] text-gray-600 mt-1">安全上限：15g/L。过量补糖是导致炸瓶的主因，建议优先依靠水果天然糖分。</p>
-            </div>
-            <div>
-                <label class="text-[10px] md:text-xs text-gray-500 block mb-2">结构感材料</label>
-                <div class="f2-additive-container">
-                    <label class="f2-additive-label flex items-center gap-3 cursor-pointer py-2">
-                        <input type="checkbox" id="f2-additive-light" class="w-5 h-5 rounded border-gray-600 bg-black text-orange-500 focus:ring-orange-500">
-                        <span class="text-xs md:text-sm text-gray-300">少量皮壳/根茎/精油类 (如 1-5 根松针)</span>
-                    </label>
-                    <label class="f2-additive-label flex items-center gap-3 cursor-pointer py-2">
-                        <input type="checkbox" id="f2-additive-heavy" class="w-5 h-5 rounded border-gray-600 bg-black text-orange-500 focus:ring-orange-500">
-                        <span class="text-xs md:text-sm text-gray-300">大量皮壳/根茎/精油类 (如一把松针或大量皮壳)</span>
-                    </label>
-                </div>
-                <p id="f2-tannin-hint" class="text-[10px] md:text-xs mono text-amber-400 mt-2.5 hidden">⚠️ 高单宁环境可能减缓产气速度</p>
-            </div>
-        </div>
         
-        <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="bg-black/50 rounded-xl p-3 md:p-4 border border-gray-800">
-                <div class="flex justify-between text-[10px] md:text-xs mono mb-2">
-                    <span class="text-gray-500">液体克数</span>
-                    <span id="f2-liquid-weight" class="text-blue-400">0 g</span>
+        <div class="f2-grid">
+            <div>
+                <h3 class="text-[10px] md:text-xs font-bold text-gray-400 uppercase mb-4">输入区</h3>
+                
+                <div class="f2-card mb-4">
+                    <label class="text-[10px] md:text-xs text-gray-500 block mb-2">瓶子总容量 (ml)</label>
+                    <input type="number" id="f2-bottle-volume" value="1000" class="w-full bg-black border border-gray-800 rounded-lg p-2.5 text-white mono text-sm">
                 </div>
-                <div class="flex justify-between text-[10px] md:text-xs mono">
-                    <span class="text-gray-500">总燃料</span>
-                    <span id="f2-total-sugar" class="text-amber-400">0 g</span>
+                
+                <div class="f2-card mb-4">
+                    <div class="flex justify-between mb-2">
+                        <label class="text-[10px] md:text-xs text-gray-500">装瓶比例</label>
+                        <span class="text-[10px] md:text-xs mono text-orange-400" id="f2-fill-percent">90%</span>
+                    </div>
+                    <input type="range" id="f2-fill-slider" min="50" max="95" value="90" step="5" class="w-full h-3 bg-gray-800 rounded-lg appearance-none cursor-pointer">
+                </div>
+                
+                <div class="f2-card mb-4">
+                    <label class="text-[10px] md:text-xs text-gray-500 block mb-2">水果档次</label>
+                    <select id="f2-fruit-type" class="w-full bg-black border border-gray-700 rounded-lg p-2.5 text-white mono text-sm">
+                        <option value="very-low">极低糖 (1.5%)</option>
+                        <option value="low">低糖 (5%)</option>
+                        <option value="medium">中糖 (10%)</option>
+                        <option value="high">高糖 (15%)</option>
+                        <option value="pure">纯糖 (100%)</option>
+                    </select>
+                </div>
+                
+                <div class="f2-card">
+                    <label class="text-[10px] md:text-xs text-gray-500 block mb-2">水果重量 (g)</label>
+                    <div class="f2-input-group">
+                        <input type="number" id="f2-fruit-weight" value="0" class="w-full bg-black border border-gray-800 rounded-lg p-2.5 pr-24 text-white mono text-sm">
+                        <span id="f2-fruit-ratio" class="f2-ratio-text">0.0%</span>
+                    </div>
+                    <p id="f2-fruit-hint" class="text-[10px] text-gray-600 mt-2"></p>
+                    <p class="text-[10px] text-gray-600 mt-1">建议比例：液体的 5%-10%。超过 20% 会导致发酵空间不足，且纤维过多影响口感。</p>
+                </div>
+                
+                <div class="f2-card mt-4">
+                    <label class="text-[10px] md:text-xs text-gray-500 block mb-2">额外补糖量 (g)</label>
+                    <div class="f2-input-group">
+                        <input type="number" id="f2-extra-sugar" value="0" class="w-full bg-black border border-gray-800 rounded-lg p-2.5 pr-24 text-white mono text-sm">
+                        <span id="f2-sugar-ratio" class="f2-ratio-text">0.0%</span>
+                    </div>
+                    <p id="f2-sugar-hint" class="text-[10px] text-red-500 mt-2"></p>
+                    <p class="text-[10px] text-gray-600 mt-1">安全上限：15g/L。过量补糖是导致炸瓶的主因，建议优先依靠水果天然糖分。</p>
                 </div>
             </div>
-            <div class="bg-black/50 rounded-xl p-3 md:p-4 border border-gray-800">
-                <div class="text-center">
-                    <p class="text-[10px] md:text-xs text-gray-500 uppercase mb-1">CO2 压力预测</p>
-                    <p id="f2-co2-value" class="text-xl md:text-2xl mono font-black text-gray-300">--</p>
-                    <p id="f2-danger-hint" class="text-[10px] text-red-500 mt-1.5 hidden"></p>
+            
+            <div>
+                <h3 class="text-[10px] md:text-xs font-bold text-gray-400 uppercase mb-4">状态区</h3>
+                
+                <div class="f2-card mb-4">
+                    <div class="flex justify-between text-[10px] md:text-xs mono mb-3">
+                        <span class="text-gray-500">液体克数</span>
+                        <span id="f2-liquid-weight" class="text-blue-400">0 g</span>
+                    </div>
+                    <div class="flex justify-between text-[10px] md:text-xs mono">
+                        <span class="text-gray-500">总燃料</span>
+                        <span id="f2-total-sugar" class="text-amber-400">0 g</span>
+                    </div>
                 </div>
-                <div class="h-2 md:h-3 bg-gray-800 rounded-full overflow-hidden mt-2">
-                    <div id="f2-pressure-gauge" class="h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                
+                <div class="f2-card">
+                    <label class="text-[10px] md:text-xs text-gray-500 block mb-3">结构感材料</label>
+                    <div class="f2-additive-container">
+                        <label class="f2-additive-label">
+                            <input type="checkbox" id="f2-additive-light" class="w-4 h-4 rounded border-gray-600 bg-black text-orange-500 focus:ring-orange-500">
+                            <span class="text-xs text-gray-300">少量皮壳/根茎/精油类 (如 1-5 根松针)</span>
+                        </label>
+                        <label class="f2-additive-label">
+                            <input type="checkbox" id="f2-additive-heavy" class="w-4 h-4 rounded border-gray-600 bg-black text-orange-500 focus:ring-orange-500">
+                            <span class="text-xs text-gray-300">大量皮壳/根茎/精油类 (如一把松针或大量皮壳)</span>
+                        </label>
+                    </div>
+                    <p id="f2-tannin-hint" class="text-[10px] md:text-xs mono text-amber-400 mt-3">⚠️ 高单宁环境可能减缓产气速度</p>
                 </div>
             </div>
-            <div class="bg-black/30 rounded-xl p-3 md:p-4 border border-blue-900/30">
-                <div class="text-center">
-                    <p class="text-[10px] md:text-xs text-gray-500 uppercase mb-1">预计达成目标压力</p>
-                    <p id="f2-time-remaining" class="text-base md:text-lg mono font-bold text-blue-400">等待数据...</p>
+            
+            <div>
+                <h3 class="text-[10px] md:text-xs font-bold text-gray-400 uppercase mb-4">预测区</h3>
+                
+                <div class="f2-card mb-4">
+                    <div class="text-center">
+                        <p class="text-[10px] md:text-xs text-gray-500 uppercase mb-2">CO2 压力预测</p>
+                        <p id="f2-co2-value" class="text-3xl mono font-black text-gray-300">--</p>
+                        <p id="f2-danger-hint" class="text-[10px] text-red-500 mt-2"></p>
+                    </div>
+                    <div class="h-3 bg-gray-800 rounded-full overflow-hidden mt-3">
+                        <div id="f2-pressure-gauge" class="h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <div class="f2-pressure-guide mt-3 pt-3 border-t border-gray-800">
+                        <div class="flex justify-between mb-1">
+                            <span>1.5-2.0 vol</span>
+                            <span class="text-gray-400">轻微气泡</span>
+                        </div>
+                        <div class="flex justify-between mb-1">
+                            <span>2.0-3.0 vol</span>
+                            <span class="text-green-400">黄金区间</span>
+                        </div>
+                        <div class="flex justify-between mb-1">
+                            <span>3.0-3.5 vol</span>
+                            <span class="text-amber-400">强力气泡</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>&gt; 3.5 vol</span>
+                            <span class="text-red-400">高压警告</span>
+                        </div>
+                    </div>
                 </div>
-                <p id="f2-chill-hint" class="text-[10px] md:text-xs mono text-blue-300 text-center mt-2"></p>
+                
+                <div class="f2-card">
+                    <div class="text-center">
+                        <p class="text-[10px] md:text-xs text-gray-500 uppercase mb-2">预计达成目标压力</p>
+                        <p id="f2-time-remaining" class="text-xl mono font-bold text-blue-400">等待数据...</p>
+                    </div>
+                    <p id="f2-chill-hint" class="text-[10px] md:text-xs mono text-blue-300 text-center mt-3 pt-3 border-t border-gray-800"></p>
+                </div>
             </div>
         </div>
     </div>

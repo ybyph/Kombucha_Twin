@@ -397,7 +397,6 @@ function calculateF2Pressure() {
     
     const maxFruitWeight = liquidWeight * 0.2;
     const fruitInput = document.getElementById('f2-fruit-weight');
-    const fruitWarning = document.getElementById('f2-fruit-warning');
     const fruitHint = document.getElementById('f2-fruit-hint');
     
     const fruitRatio = liquidWeight > 0 ? (fruitWeight / liquidWeight) * 100 : 0;
@@ -405,19 +404,11 @@ function calculateF2Pressure() {
     
     fruitInput.style.backgroundColor = '';
     fruitInput.style.borderColor = '';
-    fruitWarning.style.opacity = '0';
-    
-    if (fruitWeight > 0) {
-        fruitRatioEl.style.opacity = '1';
-        fruitRatioEl.textContent = '(占液体重 ' + fruitRatio.toFixed(1) + '%)';
-    } else {
-        fruitRatioEl.style.opacity = '0';
-    }
+    fruitRatioEl.textContent = fruitWeight > 0 ? fruitRatio.toFixed(1) + '%' : '0.0%';
     
     if (fruitWeight > maxFruitWeight) {
         fruitInput.style.backgroundColor = '#374151';
         fruitInput.style.borderColor = '#ef4444';
-        fruitWarning.style.opacity = '1';
         fruitHint.textContent = '空间不足，建议减量 (最大 ' + maxFruitWeight.toFixed(0) + 'g)';
         fruitHint.style.color = '#ef4444';
     } else if (fruitRatio > 0 && fruitRatio < 5) {
@@ -426,7 +417,7 @@ function calculateF2Pressure() {
     } else if (fruitRatio > 15) {
         fruitHint.textContent = '纤维过多，建议减量';
         fruitHint.style.color = '#fbbf24';
-    } else if (fruitWeight > 0) {
+    } else {
         fruitHint.textContent = '';
     }
     
@@ -436,16 +427,11 @@ function calculateF2Pressure() {
     
     sugarInput.style.backgroundColor = '';
     sugarInput.style.borderColor = '';
-    sugarHint.classList.add('hidden');
     
     const sugarPercent = liquidWeight > 0 ? (extraSugar / liquidWeight) * 100 : 0;
+    sugarRatioEl.textContent = extraSugar > 0 ? sugarPercent.toFixed(1) + '%' : '0.0%';
     
-    if (extraSugar > 0) {
-        sugarRatioEl.style.opacity = '1';
-        sugarRatioEl.textContent = '(占液体重 ' + sugarPercent.toFixed(1) + '%)';
-    } else {
-        sugarRatioEl.style.opacity = '0';
-    }
+    sugarHint.textContent = '';
     
     const fruitSugarRatio = FRUIT_SUGAR_RATIO[fruitType] || 0;
     
@@ -517,7 +503,14 @@ function calculateF2Pressure() {
         tanninDelay = 12;
     }
     
-    document.getElementById('f2-tannin-hint').classList.toggle('hidden', !additiveHeavy && !additiveLight);
+    const tanninHint = document.getElementById('f2-tannin-hint');
+    if (additiveHeavy || additiveLight) {
+        tanninHint.classList.remove('hidden');
+        tanninHint.style.display = 'block';
+    } else {
+        tanninHint.classList.add('hidden');
+        tanninHint.style.display = 'none';
+    }
     
     let avgTemp = 24;
     if (engine.logs.length > 0) {
