@@ -437,21 +437,20 @@ function calculateF2Pressure() {
     const totalSugar = residualSugar + fruitSugar + extraSugar;
     
     const co2Volumes = liquidVolume > 0 ? totalSugar / (4 * (liquidVolume / 1000)) : 0;
-    const clampedCo2 = Math.max(0.1, Math.min(4.0, co2Volumes));
     
     document.getElementById('f2-total-sugar').innerText = totalSugar.toFixed(1) + ' g';
-    document.getElementById('f2-co2-value').innerText = clampedCo2.toFixed(2) + ' vol';
+    document.getElementById('f2-co2-value').innerText = co2Volumes.toFixed(2) + ' vol';
     
     const gaugeEl = document.getElementById('f2-pressure-gauge');
     const valueEl = document.getElementById('f2-co2-value');
     
-    let widthPercent = Math.min(clampedCo2 / 4 * 100, 100);
+    let widthPercent = Math.min(co2Volumes / 5 * 100, 100);
     gaugeEl.style.width = widthPercent + '%';
     
-    if (clampedCo2 < 1.5) {
+    if (co2Volumes < 1.5) {
         gaugeEl.style.backgroundColor = '#6b7280';
         valueEl.className = 'text-2xl mono font-black text-gray-400';
-    } else if (clampedCo2 >= 1.5 && clampedCo2 < 3.5) {
+    } else if (co2Volumes >= 1.5 && co2Volumes < 3.5) {
         gaugeEl.style.backgroundColor = '#22c55e';
         valueEl.className = 'text-2xl mono font-black text-green-400';
     } else {
