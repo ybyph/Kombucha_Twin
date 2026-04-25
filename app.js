@@ -452,9 +452,18 @@ function calculateF2Pressure() {
         ? engine.calculate().processed[engine.calculate().processed.length - 1].realBrix 
         : parseFloat(document.getElementById('theory-brix').innerText) || 0;
     
-    const residualSugar = latestBrix * 0.01 * 0.2 * liquidVolume;
-    const fruitSugar = fruitWeight * fruitSugarRatio;
+    const residualSugar = latestBrix * 0.01 * 0.2 * liquidWeight;
+    const fruitSugar = fruitWeight * (fruitSugarRatio / 100);
     const totalSugar = residualSugar + fruitSugar + extraSugar;
+    
+    if (totalSugar > 50) {
+        console.log('F2 计算警告：总燃料超过 50g', {
+            bottleVolume, fillPercent, liquidWeight,
+            latestBrix, residualSugar,
+            fruitWeight, fruitSugarRatio, fruitSugar,
+            extraSugar, totalSugar
+        });
+    }
     
     const co2Volumes = liquidVolume > 0 ? totalSugar / (4 * (liquidVolume / 1000)) : 0;
     
