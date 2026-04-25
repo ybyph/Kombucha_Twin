@@ -133,6 +133,7 @@ class KombuchaEngineV4 {
             }
 
             const consumed = this.initBrix - currentBrix;
+            const tta = Math.max(0, (this.initBrix - currentBrix) * 0.08 + 0.15);
             const abv = consumed * 0.45;
 
             processed.push({

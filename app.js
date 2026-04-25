@@ -597,31 +597,107 @@ function calculateF2Pressure() {
     let pressureFactor = co2Volumes > 0 ? TARGET_PRESSURE / co2Volumes : 1;
     let targetHours = baseHours * pressureFactor + tanninDelay;
     
+    if (window.f2CountdownInterval) {
+        clearInterval(window.f2CountdownInterval);
+    }
+    
     if (isNaN(targetHours) || targetHours <= 0) {
         document.getElementById('f2-time-remaining').innerText = '等待数据...';
         document.getElementById('f2-chill-hint').innerText = '';
         return;
     }
     
-    const hours = Math.floor(targetHours);
-    const minutes = Math.floor((targetHours - hours) * 60);
+    const targetTime = Date.now() + targetHours * 3600000;
+    window.f2CountdownInterval = setInterval(() => {
+        const remaining = targetTime - Date.now();
+        if (remaining <= 0) {
+            document.getElementById('f2-time-remaining').innerText = '已达标!';
+            document.getElementById('f2-time-remaining').className = 'text-xl mono font-bold text-green-400';
+            clearInterval(window.f2CountdownInterval);
+            return;
+        }
+        
+        const hours = Math.floor(remaining / 3600000);
+        const minutes = Math.floor((remaining % 3600000) / 60000);
+        const seconds = Math.floor((remaining % 60000) / 1000);
+        document.getElementById('f2-time-remaining').innerText = 
+            `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }, 1000);
     
-    if (hours > 0) {
-        document.getElementById('f2-time-remaining').innerText = `${hours} 小时 ${minutes} 分钟`;
-    } else {
-        document.getElementById('f2-time-remaining').innerText = `${minutes} 分钟`;
+    document.getElementById('f2-chill-hint').innerText = `建议于目标时间前移入冰箱冷藏，锁定压力和风味。`;
+}
+
+function syncF2BottlingDefaults() {
+    if (engine.logs.length > 0) {
+        const lastLog = engine.logs[engine.logs.length - 1];
+        const bottlingBrixEl = document.getElementById('f2-bottling-brix');
+        const bottlingPhEl = document.getElementById('f2-bottling-ph');
+        
+        if (!bottlingBrixEl.dataset.userModified && lastLog.brix !== null) {
+            bottlingBrixEl.value = lastLog.brix.toFixed(1);
+        }
+        if (!bottlingPhEl.dataset.userModified && lastLog.ph !== null) {
+            bottlingPhEl.value = lastLog.ph.toFixed(1);
+        }
+    }
+}
+
+function startChillMode() {
+    if (window.chillModeActive) return;
+    
+    if (!confirm('已移入冰箱？确认后将进入冷藏锁定模式，启动 24 小时倒计时。')) {
+        return;
     }
     
-    const targetTime = new Date(Date.now() + targetHours * 3600000);
-    const hoursStr = targetTime.getHours().toString().padStart(2, '0');
-    const minsStr = targetTime.getMinutes().toString().padStart(2, '0');
-    const dateStr = `${targetTime.getMonth() + 1}/${targetTime.getDate()}`;
+    window.chillModeActive = true;
+    window.chillEndTime = Date.now() + 24 * 60 * 60 * 1000;
     
-    let chillHint = `建议于 ${dateStr} ${hoursStr}:${minsStr} 移入冰箱冷藏，锁定压力和风味。`;
-    if (hasTannin) {
-        chillHint += ' (含高单宁/精油材料)';
+    document.getElementById('f2-chill-mode').classList.remove('hidden');
+    document.getElementById('f2-start-chill').classList.add('hidden');
+    
+    updateChillTimer();
+    window.chillTimerInterval = setInterval(updateChillTimer, 1000);
+    
+    localStorage.setItem('chillMode', JSON.stringify({ active: true, endTime: window.chillEndTime }));
+}
+
+function updateChillTimer() {
+    if (!window.chillEndTime) return;
+    
+    const remaining = window.chillEndTime - Date.now();
+    if (remaining <= 0) {
+        clearInterval(window.chillTimerInterval);
+        document.getElementById('f2-chill-status').textContent = '最佳赏味期已达标';
+        document.getElementById('f2-chill-timer').textContent = '完成!';
+        localStorage.removeItem('chillMode');
+        return;
     }
-    document.getElementById('f2-chill-hint').innerText = chillHint;
+    
+    const hours = Math.floor(remaining / 3600000);
+    const minutes = Math.floor((remaining % 3600000) / 60000);
+    const seconds = Math.floor((remaining % 60000) / 1000);
+    
+    document.getElementById('f2-chill-timer').textContent = 
+        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function addChillReminderToCalendar() {
+    if (!window.chillEndTime) {
+        alert('请先开始冷藏以设置提醒');
+        return;
+    }
+    
+    const endTime = new Date(window.chillEndTime);
+    const startTime = new Date(window.chillEndTime - 30 * 60 * 1000);
+    
+    const dtstart = startTime.toISOString().replace(/-/g, '').replace(/:/g, '').substring(0, 15);
+    const dtend = endTime.toISOString().replace(/-/g, '').replace(/:/g, '').substring(0, 15);
+    
+    const url = `data:text/calendar;charset=utf-8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ASUMMARY:${encodeURIComponent('康普茶开瓶提醒')}%0ADTSTART:${dtstart}%0ADTEND:${dtend}%0ADESCRIPTION:冷藏24小时已完成，可以开瓶品尝了。%0AEND:VEVENT%0AEND:VCALENDAR`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'kombucha-chill-reminder.ics';
+    a.click();
 }
 
 function autoCalculate() {
@@ -805,6 +881,7 @@ function initEventListeners() {
         saveToStorage();
         showToast();
         updateUIGuide();
+        syncF2BottlingDefaults();
     };
 
     ['vessel-d', 'liquid-h', 'm-water', 'm-tea', 'm-sugar', 'm-starter'].forEach(id => {
@@ -831,6 +908,28 @@ function initEventListeners() {
             el.addEventListener('change', calculateF2Pressure);
         }
     });
+    
+    ['f2-bottling-brix', 'f2-bottling-ph'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', () => {
+                el.dataset.userModified = 'true';
+                calculateF2Pressure();
+            });
+            el.addEventListener('change', () => {
+                el.dataset.userModified = 'true';
+                calculateF2Pressure();
+            });
+        }
+    });
+    
+    if (document.getElementById('f2-start-chill')) {
+        document.getElementById('f2-start-chill').addEventListener('click', startChillMode);
+    }
+    
+    if (document.getElementById('f2-add-chill-reminder')) {
+        document.getElementById('f2-add-chill-reminder').addEventListener('click', addChillReminderToCalendar);
+    }
     
     document.getElementById('f2-suggest-btn').addEventListener('click', () => {
         const bottleVolume = parseFloat(document.getElementById('f2-bottle-volume').value) || 1000;
@@ -887,6 +986,31 @@ window.onload = () => {
     
     updateUIGuide();
     calculateF2Pressure();
+    syncF2BottlingDefaults();
+    
+    const savedChill = localStorage.getItem('chillMode');
+    if (savedChill) {
+        try {
+            const data = JSON.parse(savedChill);
+            if (data.active && data.endTime) {
+                window.chillModeActive = true;
+                window.chillEndTime = data.endTime;
+                
+                document.getElementById('f2-chill-mode').classList.remove('hidden');
+                document.getElementById('f2-start-chill').classList.add('hidden');
+                
+                if (window.chillEndTime > Date.now()) {
+                    updateChillTimer();
+                    window.chillTimerInterval = setInterval(updateChillTimer, 1000);
+                } else {
+                    document.getElementById('f2-chill-status').textContent = '最佳赏味期已达标';
+                    document.getElementById('f2-chill-timer').textContent = '完成!';
+                }
+            }
+        } catch (e) {
+            localStorage.removeItem('chillMode');
+        }
+    }
     
     setInterval(() => {
         if (engine.logs.length > 0) {
