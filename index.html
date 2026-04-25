@@ -1,577 +1,157 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#050505">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Kombucha Twin">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
-    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
-    <title>Kombucha Twin V4.0 - Climate Adaptive</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kombucha Twin v4.0 - 稳定修复版</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        (function() {
-            const stored = localStorage.getItem('kombucha-twin-data');
-            if (stored) {
-                try {
-                    const data = JSON.parse(stored);
-                    if (data.logs && data.logs.some(log => {
-                        const ts = new Date(log.timestamp);
-                        return ts.getFullYear() === 2026 && ts.getMonth() === 3 && ts.getDate() === 24;
-                    })) {
-                        localStorage.clear();
-                        console.log('Cleaned legacy data from 2026-04-24');
-                    }
-                } catch (e) {
-                    localStorage.clear();
-                }
-            }
-        })();
-    </script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #050505; }
-        .mono { font-family: 'JetBrains Mono', monospace; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #111827; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
-        .toast-enter { opacity: 1; transform: translateY(0); }
-        .toast-exit { opacity: 0; transform: translateY(-20px); pointer-events: none; }
-        .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        body { background-color: #0d0d0d; color: #e5e5e5; font-family: sans-serif; }
+        input { background-color: #1a1a1a !important; border: 1px solid #333 !important; color: white !important; padding: 8px; border-radius: 4px; width: 100%; }
+        .card { background-color: #141414; border: 1px solid #262626; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+        .label-text { font-size: 10px; font-weight: bold; color: #9ca3af; text-transform: uppercase; margin-bottom: 4px; display: block; }
+        .accent-text { color: #fbbf24; font-family: monospace; font-size: 1.25rem; }
     </style>
 </head>
-<body class="text-slate-300 p-2 sm:p-4 md:p-6 lg:p-8 min-h-screen">
-    
-    <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-amber-600 text-white px-6 py-3 rounded-full shadow-2xl font-bold text-sm transition-all duration-300 z-50 toast-exit flex items-center gap-2">
-        <span id="toast-msg">记录已保存</span>
-    </div>
+<body class="p-4 max-w-md mx-auto">
 
-    <div class="max-w-[1440px] mx-auto space-y-6">
-        
-        <header class="bg-gray-900/50 border border-gray-800 rounded-2xl p-6 flex flex-col md:flex-row justify-between items-center backdrop-blur-md">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center text-black font-black text-2xl">K</div>
-                <div>
-                    <h1 class="text-2xl font-bold text-white tracking-tighter">Kombucha Twin <span class="text-amber-500 text-sm">v4.0</span></h1>
-                    <p class="text-[10px] text-gray-500 mono mt-1">模型: Arrhenius 积温积分 · 正弦波昼夜模拟 · A/V 气液动力学</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-8 mt-4 md:mt-0">
-                <div class="text-center">
-                    <p class="text-[10px] text-gray-500 uppercase mb-1">瞬时代谢系数</p>
-                    <p id="kinetic-efficiency" class="text-xl mono font-bold text-blue-400">1.00x</p>
-                </div>
-                <div class="h-10 w-[1px] bg-gray-800"></div>
-                <div id="smart-action" class="text-lg font-bold text-green-500 bg-green-900/20 px-4 py-2 rounded-lg border border-green-900/30">
-                    环境就绪，等待发酵
-                </div>
-            </div>
-        </header>
-
-        <div id="f1-prediction-bar" class="bg-gradient-to-r from-amber-900/30 to-orange-900/30 border border-amber-800/30 rounded-xl p-4 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-3 h-3 rounded-full bg-amber-500 animate-pulse"></div>
-                <div>
-                    <p class="text-xs text-amber-400 font-bold">F1 黄金装瓶预测</p>
-                    <p id="f1-prediction-text" class="text-sm mono text-white">等待首条数据录入...</p>
-                </div>
-            </div>
-            <button id="add-to-calendar-f1" class="hidden px-3 py-1.5 bg-amber-600/20 text-amber-400 text-xs font-bold rounded-lg border border-amber-600/30 hover:bg-amber-600/30 transition-all">
-                添加到日历
-            </button>
+    <header class="mb-6 flex justify-between items-center">
+        <div>
+            <h1 class="text-xl font-bold">Kombucha Twin <span class="text-amber-500">v4.0</span></h1>
+            <p class="text-[10px] text-gray-500">物理逻辑接管 - 稳定版</p>
         </div>
+        <button onclick="resetData()" class="text-[10px] bg-red-900/30 text-red-400 px-2 py-1 rounded">重置批次</button>
+    </header>
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            
-            <div class="lg:col-span-3 space-y-6" id="left-panel">
-                <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5" id="recipe-panel">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xs font-black text-gray-400 uppercase border-l-2 border-amber-500 pl-2">配方设置</h2>
-                        <button id="toggle-recipe" class="text-[10px] text-gray-500 hover:text-white transition-colors">
-                            折叠
-                        </button>
-                    </div>
-                    <div id="recipe-content">
-                        <div class="bg-gray-800/50 rounded-xl p-4 mb-4">
-                            <h3 class="text-[10px] font-bold text-amber-400 uppercase mb-3">容器物理约束</h3>
-                            <div class="space-y-3">
-                                <div>
-                                    <label class="text-[10px] text-gray-500 block mb-1">开口直径 (cm)</label>
-                                    <input type="number" id="vessel-d" value="0" class="w-full bg-black border border-gray-800 rounded-lg p-2 text-white mono text-sm focus:border-amber-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="text-[10px] text-amber-500 block mb-1">实际液位高度 (cm)</label>
-                                    <input type="number" id="liquid-h" value="0" class="w-full bg-black border border-amber-900/30 rounded-lg p-2 text-white mono text-sm focus:border-amber-500 outline-none">
-                                </div>
-                                <div class="p-3 bg-black/50 rounded-lg border border-gray-800/50 flex justify-between items-center">
-                                    <span class="text-[10px] text-gray-500">A/V 传质比</span>
-                                    <span id="av-value" class="text-lg mono font-bold text-green-400">0.125</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="bg-gray-800/30 border border-cyan-900/30 rounded-xl p-4 mb-4">
-                            <h3 class="text-[10px] font-bold text-cyan-400 uppercase mb-3">新手配方推算</h3>
-                            <div class="grid grid-cols-3 gap-3 mb-3">
-                                <div class="col-span-1">
-                                    <label class="text-[10px] text-gray-500 block mb-1">受限基准</label>
-                                    <select id="limiting-factor" class="w-full bg-black border border-gray-700 rounded-lg p-2 text-white mono text-sm focus:border-cyan-500 outline-none">
-                                        <option value="starter">以启动液总量为准</option>
-                                        <option value="water">以纯水总量为准</option>
-                                    </select>
-                                </div>
-                                <div class="col-span-1">
-                                    <label class="text-[10px] text-gray-500 block mb-1">基准克数 (g)</label>
-                                    <input type="number" id="base-amount" value="0" class="w-full bg-black border border-gray-700 rounded-lg p-2 text-white mono text-sm focus:border-cyan-500 outline-none">
-                                </div>
-                                <div class="col-span-1 flex items-end">
-                                    <button id="btn-auto-calc" class="w-full bg-cyan-600 hover:bg-cyan-500 text-black font-black py-2 rounded-lg transition-all text-xs uppercase tracking-widest">
-                                        一键应用
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="text-[10px] mono text-gray-600 bg-black/30 rounded-lg p-2 border border-gray-800/50">
-                                黄金比例: 启动液 × 7 = 纯水 | 纯水 × 0.1 = 白糖 | 纯水 × 0.01 = 干茶
-                            </div>
-                        </div>
-
-                        <div class="bg-gray-800/50 rounded-xl p-4">
-                            <h3 class="text-[10px] font-bold text-blue-400 uppercase mb-3">专家物料配比</h3>
-                            <div class="grid grid-cols-2 gap-3 mb-3">
-                                <div class="col-span-2">
-                                    <label class="text-[10px] text-gray-500 block mb-1">纯水质量 (g)</label>
-                                    <input type="number" id="m-water" value="1000" class="w-full bg-black border border-gray-800 rounded-lg p-2 text-white mono text-sm">
-                                </div>
-                                <div>
-                                    <label class="text-[10px] text-gray-500 block mb-1">干茶 (g)</label>
-                                    <input type="number" id="m-tea" value="10" class="w-full bg-black border border-gray-800 rounded-lg p-2 text-white mono text-sm">
-                                </div>
-                                <div>
-                                    <label class="text-[10px] text-gray-500 block mb-1">白糖 (g)</label>
-                                    <input type="number" id="m-sugar" value="100" class="w-full bg-black border border-gray-800 rounded-lg p-2 text-white mono text-sm">
-                                </div>
-                                <div class="col-span-2">
-                                    <label class="text-[10px] text-blue-500 font-bold block mb-1">启动原液 (g)</label>
-                                    <input type="number" id="m-starter" value="100" class="w-full bg-blue-900/20 border border-blue-800 rounded-lg p-2 text-blue-300 mono text-sm font-bold">
-                                </div>
-                            </div>
-                            
-                            <div class="space-y-3 text-[11px] mono bg-black/50 p-3 rounded-lg border border-gray-800/50">
-                                <div>
-                                    <div class="flex justify-between">
-                                        <span class="text-gray-500">初始 Brix</span>
-                                        <span id="theory-brix" class="text-amber-400">0.00</span>
-                                    </div>
-                                    <p class="text-[9px] text-gray-600 mt-1">推荐: 9.0-12.0</p>
-                                </div>
-                                <div>
-                                    <div class="flex justify-between">
-                                        <span class="text-gray-500">茶底浓度 (氮源)</span>
-                                        <span id="tea-status" class="text-green-400">0.60%</span>
-                                    </div>
-                                    <p class="text-[9px] text-gray-600 mt-1">推荐: 0.8%-1.5%</p>
-                                </div>
-                                <div>
-                                    <div class="flex justify-between">
-                                        <span class="text-gray-500">启动液比例</span>
-                                        <span id="starter-pct" class="text-blue-400">18%</span>
-                                    </div>
-                                    <p class="text-[9px] text-gray-600 mt-1">推荐: 10%-20%</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-
-            <div class="lg:col-span-6 space-y-6">
-                <div class="bg-gradient-to-r from-gray-900 to-gray-800 border border-gray-700 rounded-2xl p-5">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xs font-black text-amber-400 uppercase">实时看板</h2>
-                        <button id="btn-new-batch" class="px-3 py-1.5 bg-red-600/20 text-red-400 text-[10px] font-bold rounded-lg border border-red-600/30 hover:bg-red-600/30 transition-all">
-                            开始新批次
-                        </button>
-                    </div>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div class="text-center">
-                            <p class="text-[9px] text-gray-500 uppercase mb-1">当前时长</p>
-                            <p id="elapsed-time" class="text-xl mono font-bold text-white">等待首条录入...</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-[9px] text-gray-500 uppercase mb-1">预计剩余</p>
-                            <p id="remaining-time" class="text-xl mono font-bold text-cyan-400">-</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-[9px] text-gray-500 uppercase mb-1">有效生物积温时</p>
-                            <p id="bio-hours" class="text-xl mono font-bold text-purple-400">0.0 h</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-[9px] text-gray-500 uppercase mb-1">当前 Brix</p>
-                            <p id="current-brix" class="text-xl mono font-bold text-amber-400">--</p>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-700">
-                        <div class="text-center">
-                            <p class="text-[9px] text-gray-500 uppercase mb-1">总酸 TTA 预测</p>
-                            <p id="tta-est" class="text-xl mono font-bold text-blue-400">0.00</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-[9px] text-red-500 uppercase mb-1 font-bold">ABV 酒精监控</p>
-                            <p id="abv-est" class="text-xl mono font-black text-red-500">0.00%</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 h-[450px] relative shadow-2xl" id="fermentation-roadmap">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-xs font-black text-gray-400 uppercase">发酵动力学 Roadmap</h2>
-                        <div id="chart-legend" class="flex gap-4 text-[10px] mono"></div>
-                    </div>
-                    <canvas id="roadmap-chart"></canvas>
-                </div>
+    <div class="card border-l-4 border-blue-500">
+        <h3 class="label-text text-blue-400">容器物理约束</h3>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="label-text">液位高度 (cm)</label>
+                <input type="number" id="h-input" value="18.5" step="0.1" oninput="runAllLogic()">
             </div>
-
-            <div class="lg:col-span-3 bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col h-[750px]">
-                <h2 class="text-xs font-black text-gray-400 uppercase mb-4">采样日志矩阵</h2>
-                
-                <div class="flex bg-black rounded-lg p-1 mb-4">
-                    <button id="mode-point" class="flex-1 py-1 text-[10px] font-bold rounded-md bg-gray-800 text-white transition-all">单点记录</button>
-                    <button id="mode-diurnal" class="flex-1 py-1 text-[10px] font-bold rounded-md text-gray-500 transition-all">昼夜波动</button>
-                </div>
-
-                <div id="log-form" class="bg-black/40 border border-gray-800 rounded-xl p-4 mb-4 space-y-4">
-                    <p id="first-record-hint" class="hidden text-[10px] text-red-400 font-bold text-center bg-red-900/10 border border-red-800/30 rounded-lg py-1.5">⚠️ 首条记录必须填写初始 Brix 和 pH</p>
-                    <div>
-                        <label class="text-[10px] text-gray-500 block mb-1 font-mono">TIMESTAMP / 记录时间</label>
-                        <input type="datetime-local" id="input-time" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-sm mono text-white focus:border-amber-500 outline-none">
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-3" id="temp-inputs">
-                        <div id="box-temp-main" class="col-span-2">
-                            <label class="text-[10px] text-gray-500 block mb-1 font-mono">TEMP / 温度 °C</label>
-                            <input type="number" step="0.1" id="input-temp" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-sm mono text-white text-center">
-                        </div>
-                        <div id="box-temp-min" class="hidden">
-                            <label class="text-[10px] text-blue-400 block mb-1 font-mono text-center">MIN TEMP / 最低</label>
-                            <input type="number" step="0.1" id="input-temp-min" class="w-full bg-gray-900 border border-blue-900/30 rounded-lg p-2 text-sm mono text-white text-center">
-                        </div>
-                        <div id="box-temp-max" class="hidden">
-                            <label class="text-[10px] text-red-400 block mb-1 font-mono text-center">MAX TEMP / 最高</label>
-                            <input type="number" step="0.1" id="input-temp-max" class="w-full bg-gray-900 border border-red-900/30 rounded-lg p-2 text-sm mono text-white text-center">
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-[10px] text-gray-500 block mb-1 font-mono text-center">BRIX / 糖度 %</label>
-                            <input type="number" step="0.1" id="input-brix" placeholder="可选" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-sm mono text-white text-center">
-                        </div>
-                        <div>
-                            <label class="text-[10px] text-gray-500 block mb-1 font-mono text-center">PH / 酸度</label>
-                            <input type="number" step="0.1" id="input-ph" placeholder="可选" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-sm mono text-white text-center">
-                        </div>
-                    </div>
-
-                    <button id="btn-submit" class="w-full bg-amber-600 hover:bg-amber-500 text-black font-black py-2 rounded-lg transition-all text-xs uppercase tracking-widest mt-2">
-                        Append Log
-                    </button>
-                </div>
-
-                <div class="flex-grow overflow-y-auto custom-scrollbar pr-1">
-                <div id="history-container" class="space-y-3 table-scroll"></div>
-            </div>
-            
-            <button id="btn-end-f1" class="w-full py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-black font-black rounded-xl transition-all shadow-lg shadow-orange-600/20 text-sm uppercase tracking-widest mt-4">
-                结束一发，进入二发
-            </button>
-            
-            <div id="f1-locked-hint" class="hidden text-center py-2">
-                <p class="text-xs mono text-orange-400 font-bold">⚠️ 一发已锁死，数据已封存</p>
+            <div>
+                <label class="label-text">A/V 传质比</label>
+                <div id="av-display" class="accent-text text-green-400">0.000</div>
             </div>
         </div>
     </div>
-    
-    <style>
-        #f2-panel {
-            width: 100% !important;
-            max-width: 1400px !important;
-            margin: 40px auto !important;
-            display: block !important;
-            clear: both !important;
-            float: none !important;
-            padding: 0 20px;
-            box-sizing: border-box;
+
+    <div class="card border-l-4 border-amber-500">
+        <h3 class="label-text text-amber-400">新手配方推算 (1:7)</h3>
+        <div class="flex gap-2 mb-4">
+            <select id="factor" class="bg-[#1a1a1a] border border-[#333] text-sm rounded p-2">
+                <option value="starter">以启动液为基准</option>
+            </select>
+            <input type="number" id="base-val" value="300" class="flex-1">
+            <button onclick="applyRecipe()" class="bg-amber-600 text-black font-bold px-4 rounded text-sm">应用</button>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-[11px] text-gray-400">
+            <div>纯水: <span id="r-water">--</span>g</div>
+            <div>启动液: <span id="r-starter">--</span>g</div>
+            <div>白糖: <span id="r-sugar">--</span>g</div>
+            <div>干茶: <span id="r-tea">--</span>g</div>
+        </div>
+    </div>
+
+    <div class="card bg-amber-900/10 border-amber-900/30">
+        <div class="grid grid-cols-2 gap-4 text-center">
+            <div>
+                <p class="label-text">当前估计 ABV</p>
+                <p id="abv-val" class="text-2xl font-bold text-amber-500">0.00%</p>
+            </div>
+            <div>
+                <p class="label-text">预计剩余时间</p>
+                <p id="time-val" class="text-2xl font-bold text-white">--</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 class="label-text">采样日志录入</h3>
+        <div class="grid grid-cols-2 gap-2 mb-2">
+            <input type="number" id="in-brix" placeholder="Brix %" step="0.1">
+            <input type="number" id="in-temp" placeholder="温度 °C" value="25">
+        </div>
+        <button onclick="addLog()" class="w-full bg-white text-black font-bold py-2 rounded mt-2">APPEND LOG</button>
+    </div>
+
+    <div id="log-list" class="space-y-2 mb-20"></div>
+
+    <script>
+        // --- 核心逻辑 ---
+        let logs = JSON.parse(localStorage.getItem('kb_logs')) || [];
+
+        function runAllLogic() {
+            // 1. A/V 计算: 1 / 高度
+            const h = parseFloat(document.getElementById('h-input').value) || 0;
+            document.getElementById('av-display').innerText = h > 0 ? (1/h).toFixed(3) : "0.000";
+
+            // 2. 看板计算
+            if (logs.length > 0) {
+                const first = logs[0];
+                const last = logs[logs.length - 1];
+                // ABV = (开始Brix - 当前Brix) * 0.5
+                const abv = Math.max(0, (first.brix - last.brix) * 0.5);
+                document.getElementById('abv-val').innerText = abv.toFixed(2) + "%";
+
+                // 剩余时间: 积温 2100 / 平均温
+                const avgTemp = logs.reduce((s, l) => s + l.temp, 0) / logs.length;
+                const hoursTotal = 2100 / (avgTemp || 25);
+                const elapsed = (new Date() - new Date(first.time)) / 3600000;
+                const remain = Math.max(0, hoursTotal - elapsed);
+                document.getElementById('time-val').innerText = Math.round(remain) + "h";
+            }
+            renderLogs();
         }
-        .f2-grid {
-            display: grid !important;
-            grid-template-columns: 1fr 1fr 1fr !important;
-            gap: 20px !important;
+
+        function applyRecipe() {
+            const base = parseFloat(document.getElementById('base-val').value) || 0;
+            // 1:7 黄金比例
+            const water = base * 7;
+            document.getElementById('r-water').innerText = Math.round(water);
+            document.getElementById('r-starter').innerText = Math.round(base);
+            document.getElementById('r-sugar').innerText = Math.round(water * 0.1);
+            document.getElementById('r-tea').innerText = Math.round(water * 0.01);
         }
-        @media (max-width: 1023px) {
-            .f2-grid {
-                grid-template-columns: 1fr !important;
-                gap: 16px !important;
+
+        function addLog() {
+            const b = parseFloat(document.getElementById('in-brix').value);
+            const t = parseFloat(document.getElementById('in-temp').value) || 25;
+            if (isNaN(b)) return alert("请输入 Brix");
+
+            logs.push({ brix: b, temp: t, time: new Date().toISOString() });
+            localStorage.setItem('kb_logs', JSON.stringify(logs));
+            document.getElementById('in-brix').value = "";
+            runAllLogic();
+        }
+
+        function renderLogs() {
+            const container = document.getElementById('log-list');
+            container.innerHTML = logs.map((l, i) => `
+                <div class="card p-3 flex justify-between items-center text-sm mb-2">
+                    <span>${new Date(l.time).toLocaleTimeString()} | <b>${l.brix}%</b> | ${l.temp}°C</span>
+                    <button onclick="delLog(${i})" class="text-red-500 text-xs">删除</button>
+                </div>
+            `).reverse().join('');
+        }
+
+        function delLog(i) {
+            logs.splice(i, 1);
+            localStorage.setItem('kb_logs', JSON.stringify(logs));
+            runAllLogic();
+        }
+
+        function resetData() {
+            if (confirm("确定重置吗？")) {
+                localStorage.removeItem('kb_logs');
+                logs = [];
+                location.reload();
             }
         }
-        .f2-card {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 15px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .f2-input-group {
-            position: relative;
-        }
-        .f2-ratio-text {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 10px;
-            color: #60a5fa;
-            pointer-events: none;
-        }
-        .f2-pressure-guide {
-            font-size: 9px;
-            line-height: 1.4;
-            color: #6b7280;
-        }
-        .f2-additive-container {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            width: 100%;
-            padding: 0;
-        }
-        .f2-additive-label {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            cursor: pointer;
-            line-height: 1.6;
-            white-space: normal;
-            width: 100%;
-            padding: 8px;
-            border-radius: 8px;
-            transition: background 0.2s;
-        }
-        .f2-additive-label:hover {
-            background: rgba(255, 255, 255, 0.05);
-        }
-        .f2-additive-label input[type="checkbox"] {
-            flex-shrink: 0;
-            margin-top: 2px;
-        }
-        .f2-additive-label span {
-            font-size: 12px;
-            color: #d1d5db;
-            flex: 1;
-        }
-        .f2-chill-mode {
-            background: linear-gradient(135deg, rgba(30, 58, 138, 0.3) 0%, rgba(30, 64, 175, 0.3) 100%);
-        }
-    </style>
-    </div>
-</div>
 
-<div id="f2-panel">
-    <div id="f2-overlay" class="relative">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-2xl z-10 flex items-center justify-center pointer-events-none" id="f2-disabled-mask">
-            <div class="text-center">
-                <p class="text-2xl font-bold text-gray-500 mb-2">🔒 F2 模块未激活</p>
-                <p class="text-sm text-gray-600">请先完成一发发酵，点击"结束一发，开始装瓶"</p>
-            </div>
-        </div>
-    <div class="bg-gradient-to-b from-gray-900/80 to-gray-950 border border-gray-700/50 rounded-2xl p-4 md:p-6 shadow-lg shadow-black/20">
-        <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center gap-2">
-                <div class="w-2 h-2 rounded-full bg-orange-500"></div>
-                <h2 class="text-xs md:text-sm font-black text-orange-400 uppercase">二发压力预测 (F2 Ballistic Engine)</h2>
-            </div>
-            <button id="f2-suggest-btn" class="px-3 py-1.5 bg-green-600/20 text-green-400 text-[10px] md:text-xs font-bold rounded-lg border border-green-600/30 hover:bg-green-600/30 transition-all">
-                推荐配方
-            </button>
-        </div>
-        
-        <div class="f2-grid">
-            <div>
-                <h3 class="text-[10px] md:text-xs font-bold text-gray-400 uppercase mb-4">装瓶基准</h3>
-                
-                <div class="f2-card mb-4 bg-blue-900/20 border-blue-800/30">
-                    <label class="text-[10px] md:text-xs text-blue-400 block mb-2">装瓶实测 Brix</label>
-                    <input type="number" id="f2-bottling-brix" value="5.0" step="0.1" class="w-full bg-black border border-blue-800 rounded-lg p-2.5 text-blue-300 mono text-sm">
-                    <p class="text-[10px] text-gray-600 mt-1">自动填充 F1 最后值，可手动修改</p>
-                </div>
-                
-                <div class="f2-card mb-4 bg-purple-900/20 border-purple-800/30">
-                    <label class="text-[10px] md:text-xs text-purple-400 block mb-2">装瓶实测 pH</label>
-                    <input type="number" id="f2-bottling-ph" value="3.5" step="0.1" class="w-full bg-black border border-purple-800 rounded-lg p-2.5 text-purple-300 mono text-sm">
-                    <p class="text-[10px] text-gray-600 mt-1">自动填充 F1 最后值，可手动修改</p>
-                </div>
-                
-                <h3 class="text-[10px] md:text-xs font-bold text-gray-400 uppercase mb-4 mt-6">输入区</h3>
-                
-                <div class="f2-card mb-4">
-                    <label class="text-[10px] md:text-xs text-gray-500 block mb-2">瓶子总容量 (ml)</label>
-                    <input type="number" id="f2-bottle-volume" value="1000" class="w-full bg-black border border-gray-800 rounded-lg p-2.5 text-white mono text-sm">
-                </div>
-                
-                <div class="f2-card mb-4">
-                    <div class="flex justify-between mb-2">
-                        <label class="text-[10px] md:text-xs text-gray-500">装瓶比例</label>
-                        <span class="text-[10px] md:text-xs mono text-orange-400" id="f2-fill-percent">90%</span>
-                    </div>
-                    <input type="range" id="f2-fill-slider" min="50" max="95" value="90" step="5" class="w-full h-3 bg-gray-800 rounded-lg appearance-none cursor-pointer">
-                </div>
-                
-                <div class="f2-card mb-4">
-                    <label class="text-[10px] md:text-xs text-gray-500 block mb-2">水果档次</label>
-                    <select id="f2-fruit-type" class="w-full bg-black border border-gray-700 rounded-lg p-2.5 text-white mono text-sm">
-                        <option value="very-low">极低糖 (1.5%)</option>
-                        <option value="low">低糖 (5%)</option>
-                        <option value="medium">中糖 (10%)</option>
-                        <option value="high">高糖 (15%)</option>
-                        <option value="pure">纯糖 (100%)</option>
-                    </select>
-                </div>
-                
-                <div class="f2-card">
-                    <label class="text-[10px] md:text-xs text-gray-500 block mb-2">水果重量 (g)</label>
-                    <div class="f2-input-group">
-                        <input type="number" id="f2-fruit-weight" value="0" max="200" class="w-full bg-black border border-gray-800 rounded-lg p-2.5 pr-20 text-white mono text-sm">
-                        <span id="f2-fruit-ratio" class="f2-ratio-text">0.0%</span>
-                    </div>
-                    <p id="f2-fruit-hint" class="text-[10px] text-gray-600 mt-2"></p>
-                    <p class="text-[10px] text-gray-600 mt-1">建议比例：液体的 5%-10%。超过 20% 会导致发酵空间不足。</p>
-                </div>
-                
-                <div class="f2-card mt-4">
-                    <label class="text-[10px] md:text-xs text-gray-500 block mb-2">额外补糖量 (g)</label>
-                    <div class="f2-input-group">
-                        <input type="number" id="f2-extra-sugar" value="0" max="200" class="w-full bg-black border border-gray-800 rounded-lg p-2.5 pr-20 text-white mono text-sm">
-                        <span id="f2-sugar-ratio" class="f2-ratio-text">0.0%</span>
-                    </div>
-                    <p id="f2-sugar-hint" class="text-[10px] text-red-500 mt-2"></p>
-                    <p class="text-[10px] text-gray-600 mt-1">安全上限：15g/L。过量补糖是导致炸瓶的主因。</p>
-                </div>
-            </div>
-            
-            <div>
-                <h3 class="text-[10px] md:text-xs font-bold text-gray-400 uppercase mb-4">状态区</h3>
-                
-                <div class="f2-card mb-4">
-                    <div class="flex justify-between text-[10px] md:text-xs mono mb-3">
-                        <span class="text-gray-500">液体克数</span>
-                        <span id="f2-liquid-weight" class="text-blue-400">0 g</span>
-                    </div>
-                    <div class="flex justify-between text-[10px] md:text-xs mono">
-                        <span class="text-gray-500">总燃料</span>
-                        <span id="f2-total-sugar" class="text-amber-400">0 g</span>
-                    </div>
-                </div>
-                
-                <div class="f2-card">
-                    <label class="text-[10px] md:text-xs text-gray-500 block mb-3">结构感材料</label>
-                    <div class="f2-additive-container">
-                        <label class="f2-additive-label">
-                            <input type="checkbox" id="f2-additive-light" class="w-4 h-4 rounded border-gray-600 bg-black text-orange-500 focus:ring-orange-500 flex-shrink-0 mt-0.5">
-                            <span class="text-xs text-gray-300">少量皮壳/根茎/精油类 (如 1-5 根松针)</span>
-                        </label>
-                        <label class="f2-additive-label">
-                            <input type="checkbox" id="f2-additive-heavy" class="w-4 h-4 rounded border-gray-600 bg-black text-orange-500 focus:ring-orange-500 flex-shrink-0 mt-0.5">
-                            <span class="text-xs text-gray-300">大量皮壳/根茎/精油类 (如一把松针或大量皮壳)</span>
-                        </label>
-                    </div>
-                    <p id="f2-tannin-hint" class="text-[10px] md:text-xs mono text-amber-400 mt-3"></p>
-                </div>
-            </div>
-            
-            <div>
-                <h3 class="text-[10px] md:text-xs font-bold text-gray-400 uppercase mb-4">预测区</h3>
-                
-                <div class="f2-card mb-4">
-                    <div class="text-center">
-                        <p class="text-[10px] md:text-xs text-gray-500 uppercase mb-2">CO2 压力预测</p>
-                        <p id="f2-co2-value" class="text-3xl mono font-black text-gray-300">--</p>
-                        <p id="f2-danger-hint" class="text-[10px] text-red-500 mt-2"></p>
-                    </div>
-                    <div class="h-3 bg-gray-800 rounded-full overflow-hidden mt-3">
-                        <div id="f2-pressure-gauge" class="h-full rounded-full transition-all duration-500" style="width: 0%"></div>
-                    </div>
-                    <div class="f2-pressure-guide mt-3 pt-3 border-t border-gray-800">
-                        <div class="flex justify-between mb-1">
-                            <span>1.5-2.0 vol</span>
-                            <span class="text-gray-400">轻微气泡</span>
-                        </div>
-                        <div class="flex justify-between mb-1">
-                            <span>2.0-3.0 vol</span>
-                            <span class="text-green-400">黄金区间</span>
-                        </div>
-                        <div class="flex justify-between mb-1">
-                            <span>3.0-3.5 vol</span>
-                            <span class="text-amber-400">强力气泡</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>&gt; 3.5 vol</span>
-                            <span class="text-red-400">高压警告</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="f2-card">
-                    <div class="text-center">
-                        <p class="text-[10px] md:text-xs text-gray-500 uppercase mb-2">预计达成目标压力</p>
-                        <p id="f2-time-remaining" class="text-xl mono font-bold text-blue-400">等待数据...</p>
-                    </div>
-                    <div id="f2-start-countdown-btn" class="hidden mb-4 p-3 bg-amber-900/20 border border-amber-700/50 rounded-lg text-center">
-                        <p class="text-sm mono text-amber-400 font-bold mb-1">⚠️ 备料就绪后，点击下方启动二发倒计时</p>
-                        <button class="px-6 py-2 bg-gradient-to-r from-amber-600 to-orange-600 text-black font-bold rounded-lg hover:from-amber-500 hover:to-orange-500 transition-all text-sm">
-                            🍾 完成装瓶，启动二发
-                        </button>
-                    </div>
-                    <p id="f2-chill-hint" class="text-[10px] md:text-xs mono text-blue-300 text-center mt-3 pt-3 border-t border-gray-800"></p>
-                    
-                    <div class="mt-4 pt-4 border-t border-gray-800">
-                        <button id="add-to-calendar-f2" class="w-full py-2 bg-green-600/20 text-green-400 text-xs font-bold rounded-lg border border-green-600/30 hover:bg-green-600/30 transition-all mb-3 opacity-50 cursor-not-allowed" disabled>
-                            添加提醒到日历
-                        </button>
-                        <button id="f2-start-chill" class="w-full py-2.5 bg-blue-600/20 text-blue-400 text-xs font-bold rounded-lg border border-blue-600/30 hover:bg-blue-600/30 transition-all opacity-50 cursor-not-allowed" disabled>
-                            开始冷藏
-                        </button>
-                    </div>
-                </div>
-                
-                <div id="f2-chill-mode" class="f2-card bg-blue-900/20 border-blue-700/30 hidden">
-                    <div class="text-center">
-                        <div class="w-4 h-4 rounded-full bg-blue-400 animate-pulse mx-auto mb-3"></div>
-                        <p id="f2-chill-status" class="text-sm font-bold text-blue-400">气泡锁定中，请勿开瓶</p>
-                        <p id="f2-chill-timer" class="text-2xl mono font-black text-blue-300 mt-2">24:00:00</p>
-                        <p class="text-[10px] text-blue-300/70 mt-2">正在利用亨利定律锁定气泡...</p>
-                    </div>
-                    <button id="f2-add-chill-reminder" class="w-full mt-4 py-2 bg-blue-600/30 text-blue-300 text-xs font-bold rounded-lg border border-blue-600/40 hover:bg-blue-600/40 transition-all">
-                        预约开瓶提醒
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-    </div>
-    
-    <script src="engine.js"></script>
-    <script src="app.js"></script>
-    
-    <div class="max-w-[1440px] mx-auto mt-8 mb-8 px-4">
-        <button id="btn-new-batch-footer" class="w-full py-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-black font-black rounded-xl transition-all shadow-lg shadow-amber-600/20">
-            🔄 开始新批次
-        </button>
-    </div>
-    
+        // 页面加载后立即执行
+        window.onload = runAllLogic;
+    </script>
 </body>
 </html>
-<!-- trigger deployment -->
