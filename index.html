@@ -282,7 +282,7 @@
     <style>
         #f2-panel {
             width: 100%;
-            max-width: 1100px;
+            max-width: 1200px;
             margin: 40px auto;
             display: block !important;
             clear: both;
@@ -327,14 +327,19 @@
         .f2-additive-container {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 15px;
+            width: 100%;
         }
         .f2-additive-label {
             display: flex;
-            align-items: center;
-            gap: 10px;
+            align-items: flex-start;
+            gap: 12px;
             cursor: pointer;
-            line-height: 1.4;
+            line-height: 1.5;
+            white-space: normal;
+        }
+        .f2-chill-mode {
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.3) 0%, rgba(30, 64, 175, 0.3) 100%);
         }
     </style>
 </div>
@@ -382,21 +387,21 @@
                 <div class="f2-card">
                     <label class="text-[10px] md:text-xs text-gray-500 block mb-2">水果重量 (g)</label>
                     <div class="f2-input-group">
-                        <input type="number" id="f2-fruit-weight" value="0" class="w-full bg-black border border-gray-800 rounded-lg p-2.5 pr-24 text-white mono text-sm">
+                        <input type="number" id="f2-fruit-weight" value="0" class="w-full bg-black border border-gray-800 rounded-lg p-2.5 pr-20 text-white mono text-sm">
                         <span id="f2-fruit-ratio" class="f2-ratio-text">0.0%</span>
                     </div>
                     <p id="f2-fruit-hint" class="text-[10px] text-gray-600 mt-2"></p>
-                    <p class="text-[10px] text-gray-600 mt-1">建议比例：液体的 5%-10%。超过 20% 会导致发酵空间不足，且纤维过多影响口感。</p>
+                    <p class="text-[10px] text-gray-600 mt-1">建议比例：液体的 5%-10%。超过 20% 会导致发酵空间不足。</p>
                 </div>
                 
                 <div class="f2-card mt-4">
                     <label class="text-[10px] md:text-xs text-gray-500 block mb-2">额外补糖量 (g)</label>
                     <div class="f2-input-group">
-                        <input type="number" id="f2-extra-sugar" value="0" class="w-full bg-black border border-gray-800 rounded-lg p-2.5 pr-24 text-white mono text-sm">
+                        <input type="number" id="f2-extra-sugar" value="0" class="w-full bg-black border border-gray-800 rounded-lg p-2.5 pr-20 text-white mono text-sm">
                         <span id="f2-sugar-ratio" class="f2-ratio-text">0.0%</span>
                     </div>
                     <p id="f2-sugar-hint" class="text-[10px] text-red-500 mt-2"></p>
-                    <p class="text-[10px] text-gray-600 mt-1">安全上限：15g/L。过量补糖是导致炸瓶的主因，建议优先依靠水果天然糖分。</p>
+                    <p class="text-[10px] text-gray-600 mt-1">安全上限：15g/L。过量补糖是导致炸瓶的主因。</p>
                 </div>
             </div>
             
@@ -418,15 +423,15 @@
                     <label class="text-[10px] md:text-xs text-gray-500 block mb-3">结构感材料</label>
                     <div class="f2-additive-container">
                         <label class="f2-additive-label">
-                            <input type="checkbox" id="f2-additive-light" class="w-4 h-4 rounded border-gray-600 bg-black text-orange-500 focus:ring-orange-500">
+                            <input type="checkbox" id="f2-additive-light" class="w-4 h-4 rounded border-gray-600 bg-black text-orange-500 focus:ring-orange-500 flex-shrink-0 mt-0.5">
                             <span class="text-xs text-gray-300">少量皮壳/根茎/精油类 (如 1-5 根松针)</span>
                         </label>
                         <label class="f2-additive-label">
-                            <input type="checkbox" id="f2-additive-heavy" class="w-4 h-4 rounded border-gray-600 bg-black text-orange-500 focus:ring-orange-500">
+                            <input type="checkbox" id="f2-additive-heavy" class="w-4 h-4 rounded border-gray-600 bg-black text-orange-500 focus:ring-orange-500 flex-shrink-0 mt-0.5">
                             <span class="text-xs text-gray-300">大量皮壳/根茎/精油类 (如一把松针或大量皮壳)</span>
                         </label>
                     </div>
-                    <p id="f2-tannin-hint" class="text-[10px] md:text-xs mono text-amber-400 mt-3">⚠️ 高单宁环境可能减缓产气速度</p>
+                    <p id="f2-tannin-hint" class="text-[10px] md:text-xs mono text-amber-400 mt-3"></p>
                 </div>
             </div>
             

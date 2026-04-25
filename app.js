@@ -110,35 +110,33 @@ function updateUI(params) {
 }
 
 function calculateF1BottlingPrediction() {
-    if (engine.logs.length < 3) {
+    if (engine.logs.length < 2) {
+        document.getElementById('f1-prediction-text').innerText = '等待首条数据录入...';
+        document.getElementById('f1-add-calendar').classList.add('hidden');
+        return;
+    }
+    
+    const lastTwoLogs = engine.logs.slice(-2);
+    if (lastTwoLogs.length < 2) {
         document.getElementById('f1-prediction-text').innerText = '等待更多数据录入...';
         document.getElementById('f1-add-calendar').classList.add('hidden');
         return;
     }
     
-    const lastThreeLogs = engine.logs.slice(-3);
-    let totalBrixDrop = 0;
-    let totalHours = 0;
+    const prevBrix = lastTwoLogs[0].brix || engine.calculate().processed[engine.calculate().processed.length - 2]?.realBrix || 0;
+    const currBrix = lastTwoLogs[1].brix || engine.calculate().processed[engine.calculate().processed.length - 1]?.realBrix || 0;
+    const brixDrop = Math.max(0, prevBrix - currBrix);
     
-    for (let i = 1; i < lastThreeLogs.length; i++) {
-        const prevBrix = lastThreeLogs[i - 1].brix || engine.calculate().processed[i - 1]?.realBrix || 0;
-        const currBrix = lastThreeLogs[i].brix || engine.calculate().processed[i]?.realBrix || 0;
-        totalBrixDrop += Math.max(0, prevBrix - currBrix);
-        
-        const prevTime = lastThreeLogs[i - 1].timestamp;
-        const currTime = lastThreeLogs[i].timestamp;
-        totalHours += (currTime - prevTime) / 3600000;
-    }
+    const timeDiff = (lastTwoLogs[1].timestamp - lastTwoLogs[0].timestamp) / 3600000;
     
-    if (totalHours === 0 || totalBrixDrop === 0) {
+    if (timeDiff === 0 || brixDrop === 0) {
         document.getElementById('f1-prediction-text').innerText = '等待更多数据录入...';
         document.getElementById('f1-add-calendar').classList.add('hidden');
         return;
     }
     
-    const brixDropRate = totalBrixDrop / totalHours;
-    const lastLog = engine.logs[engine.logs.length - 1];
-    const currentBrix = lastLog.brix || engine.calculate().processed[engine.calculate().processed.length - 1]?.realBrix || 5.0;
+    const brixDropRate = brixDrop / timeDiff;
+    const currentBrix = currBrix;
     const targetBrix = 3.2;
     const brixToDrop = Math.max(0, currentBrix - targetBrix);
     
@@ -167,21 +165,11 @@ function calculateF1BottlingPrediction() {
     
     document.getElementById('f1-add-calendar').onclick = function() {
         const targetTime = new Date(Date.now() + hoursToTarget * 3600000);
-        const event = {
-            title: '康普茶黄金装瓶提醒',
-            start: targetTime.toISOString(),
-            duration: { hours: 2 }
-        };
-        
-        if (navigator.calendar && navigator.calendar.createEvent) {
-            navigator.calendar.createEvent(event);
-        } else {
-            const url = `data:text/calendar;charset=utf-8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ASUMMARY:${encodeURIComponent(event.title)}%0ADTSTART:${targetTime.toISOString().replace(/-/g, '').replace(/:/g, '').substring(0, 15)}%0ADURATION:PT2H%0AEND:VEVENT%0AEND:VCALENDAR`;
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'kombucha-bottling.ics';
-            a.click();
-        }
+        const url = `data:text/calendar;charset=utf-8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ASUMMARY:${encodeURIComponent('康普茶黄金装瓶提醒')}%0ADTSTART:${targetTime.toISOString().replace(/-/g, '').replace(/:/g, '').substring(0, 15)}%0ADURATION:PT2H%0AEND:VEVENT%0AEND:VCALENDAR`;
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'kombucha-bottling.ics';
+        a.click();
     };
 }
 
