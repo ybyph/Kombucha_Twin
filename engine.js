@@ -15,7 +15,7 @@ class KombuchaEngineV4 {
         const mS = parseFloat(document.getElementById('m-sugar').value) || 0;
         const mSt = parseFloat(document.getElementById('m-starter').value) || 0;
         this.totalMass = mW + mT + mS + mSt;
-        this.initBrix = this.totalMass > 0 ? (mS / this.totalMass) * 100 : 12;
+        this.initBrix = this.totalMass > 0 ? (mS / this.totalMass) * 100 : 10.0;
         
         this.teaPct = (mT / this.totalMass) * 100;
         
