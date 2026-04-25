@@ -26,7 +26,8 @@ function saveToStorage() {
         'fruit-type': document.getElementById('f2-fruit-type').value,
         'fruit-weight': document.getElementById('f2-fruit-weight').value,
         'extra-sugar': document.getElementById('f2-extra-sugar').value,
-        'additives': document.getElementById('f2-additives').value
+        'additive-light': document.getElementById('f2-additive-light')?.checked || false,
+        'additive-heavy': document.getElementById('f2-additive-heavy')?.checked || false
     };
     
     const data = {
@@ -60,13 +61,20 @@ function loadFromStorage() {
                 'fill-slider': 'f2-fill-slider',
                 'fruit-type': 'f2-fruit-type',
                 'fruit-weight': 'f2-fruit-weight',
-                'extra-sugar': 'f2-extra-sugar',
-                'additives': 'f2-additives'
+                'extra-sugar': 'f2-extra-sugar'
             };
-            Object.keys(data.f2Data).forEach(key => {
+            Object.keys(f2Map).forEach(key => {
                 const el = document.getElementById(f2Map[key]);
                 if (el) el.value = data.f2Data[key];
             });
+            
+            if (document.getElementById('f2-additive-light')) {
+                document.getElementById('f2-additive-light').checked = data.f2Data['additive-light'] || false;
+            }
+            if (document.getElementById('f2-additive-heavy')) {
+                document.getElementById('f2-additive-heavy').checked = data.f2Data['additive-heavy'] || false;
+            }
+            
             document.getElementById('f2-fill-percent').innerText = data.f2Data['fill-slider'] + '%';
         }
         
@@ -380,48 +388,88 @@ function calculateF2Pressure() {
     const fruitType = document.getElementById('f2-fruit-type').value;
     const fruitWeight = parseFloat(document.getElementById('f2-fruit-weight').value) || 0;
     const extraSugar = parseFloat(document.getElementById('f2-extra-sugar').value) || 0;
-    const additives = document.getElementById('f2-additives').value || '';
+    const additiveLight = document.getElementById('f2-additive-light')?.checked || false;
+    const additiveHeavy = document.getElementById('f2-additive-heavy')?.checked || false;
     
     const liquidVolume = bottleVolume * (fillPercent / 100);
+    const liquidWeight = liquidVolume;
+    document.getElementById('f2-liquid-weight').innerText = liquidWeight.toFixed(0) + ' g';
+    
+    const maxFruitWeight = liquidWeight * 0.2;
+    const fruitInput = document.getElementById('f2-fruit-weight');
+    const fruitWarning = document.getElementById('f2-fruit-warning');
+    const fruitHint = document.getElementById('f2-fruit-hint');
+    
+    if (fruitWeight > maxFruitWeight) {
+        fruitInput.style.backgroundColor = '#374151';
+        fruitInput.style.borderColor = '#ef4444';
+        fruitWarning.style.opacity = '1';
+        fruitHint.classList.remove('hidden');
+        fruitHint.textContent = '空间不足，建议减量 (最大 ' + maxFruitWeight.toFixed(0) + 'g)';
+    } else {
+        fruitInput.style.backgroundColor = '';
+        fruitInput.style.borderColor = '';
+        fruitWarning.style.opacity = '0';
+        fruitHint.classList.add('hidden');
+    }
+    
+    const sugarInput = document.getElementById('f2-extra-sugar');
+    const sugarHint = document.getElementById('f2-sugar-hint');
+    
+    if (extraSugar > 15) {
+        sugarInput.style.backgroundColor = '#374151';
+        sugarInput.style.borderColor = '#ef4444';
+        sugarHint.classList.remove('hidden');
+    } else {
+        sugarInput.style.backgroundColor = '';
+        sugarInput.style.borderColor = '';
+        sugarHint.classList.add('hidden');
+    }
+    
     const fruitSugarRatio = FRUIT_SUGAR_RATIO[fruitType] || 0;
     
     const latestBrix = engine.logs.length > 0 
         ? engine.calculate().processed[engine.calculate().processed.length - 1].realBrix 
         : parseFloat(document.getElementById('theory-brix').innerText) || 0;
     
-    const residualSugar = latestBrix * 0.1 * liquidVolume;
+    const residualSugar = latestBrix * 0.01 * 0.2 * liquidVolume;
     const fruitSugar = fruitWeight * fruitSugarRatio;
     const totalSugar = residualSugar + fruitSugar + extraSugar;
     
     const co2Volumes = liquidVolume > 0 ? totalSugar / (4 * (liquidVolume / 1000)) : 0;
+    const clampedCo2 = Math.max(0.1, Math.min(4.0, co2Volumes));
     
     document.getElementById('f2-total-sugar').innerText = totalSugar.toFixed(1) + ' g';
-    document.getElementById('f2-co2-value').innerText = co2Volumes.toFixed(2) + ' vol';
+    document.getElementById('f2-co2-value').innerText = clampedCo2.toFixed(2) + ' vol';
     
     const gaugeEl = document.getElementById('f2-pressure-gauge');
     const valueEl = document.getElementById('f2-co2-value');
     
-    let widthPercent = Math.min(co2Volumes / 5 * 100, 100);
+    let widthPercent = Math.min(clampedCo2 / 4 * 100, 100);
     gaugeEl.style.width = widthPercent + '%';
     
-    if (co2Volumes < 1.5) {
+    if (clampedCo2 < 1.5) {
         gaugeEl.style.backgroundColor = '#6b7280';
-        valueEl.className = 'text-3xl mono font-black text-gray-400';
-    } else if (co2Volumes >= 1.5 && co2Volumes < 3.5) {
+        valueEl.className = 'text-2xl mono font-black text-gray-400';
+    } else if (clampedCo2 >= 1.5 && clampedCo2 < 3.5) {
         gaugeEl.style.backgroundColor = '#22c55e';
-        valueEl.className = 'text-3xl mono font-black text-green-400';
+        valueEl.className = 'text-2xl mono font-black text-green-400';
     } else {
         gaugeEl.style.backgroundColor = '#ef4444';
-        valueEl.className = 'text-3xl mono font-black text-red-500 animate-pulse';
+        valueEl.className = 'text-2xl mono font-black text-red-500 animate-pulse';
     }
 
     const BASE_DEGREE_HOURS = 1728;
     const STANDARD_SUGAR_PER_LITER = 10;
-    const TANNIN_DELAY_HOURS = 12;
     
-    const hasTannin = additives.includes('松针') || additives.includes('皮壳');
+    let tanninDelay = 0;
+    if (additiveHeavy) {
+        tanninDelay = 18;
+    } else if (additiveLight) {
+        tanninDelay = 6;
+    }
     
-    document.getElementById('f2-tannin-hint').classList.toggle('hidden', !hasTannin);
+    document.getElementById('f2-tannin-hint').classList.toggle('hidden', !additiveHeavy);
     
     let avgTemp = 24;
     if (engine.logs.length > 0) {
@@ -436,10 +484,7 @@ function calculateF2Pressure() {
     
     let targetHours = BASE_DEGREE_HOURS / avgTemp;
     targetHours = targetHours / sugarFactor;
-    
-    if (hasTannin) {
-        targetHours += TANNIN_DELAY_HOURS;
-    }
+    targetHours += tanninDelay;
     
     if (isNaN(targetHours) || targetHours <= 0) {
         document.getElementById('f2-time-remaining').innerText = '等待数据...';
@@ -523,7 +568,12 @@ function startNewBatch() {
         document.getElementById('f2-fruit-type').value = 'medium';
         document.getElementById('f2-fruit-weight').value = '0';
         document.getElementById('f2-extra-sugar').value = '0';
-        document.getElementById('f2-additives').value = '';
+        if (document.getElementById('f2-additive-light')) {
+            document.getElementById('f2-additive-light').checked = false;
+        }
+        if (document.getElementById('f2-additive-heavy')) {
+            document.getElementById('f2-additive-heavy').checked = false;
+        }
         document.getElementById('f2-tannin-hint').classList.add('hidden');
         
         const params = engine.initParams();
@@ -650,8 +700,12 @@ function initEventListeners() {
         calculateF2Pressure();
     });
 
-    ['f2-bottle-volume', 'f2-fruit-type', 'f2-fruit-weight', 'f2-extra-sugar', 'f2-additives'].forEach(id => {
-        document.getElementById(id).addEventListener('input', calculateF2Pressure);
+    ['f2-bottle-volume', 'f2-fruit-type', 'f2-fruit-weight', 'f2-extra-sugar', 'f2-additive-light', 'f2-additive-heavy'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', calculateF2Pressure);
+            el.addEventListener('change', calculateF2Pressure);
+        }
     });
 }
 
