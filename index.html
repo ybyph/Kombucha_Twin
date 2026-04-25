@@ -168,7 +168,7 @@
                                         <span class="text-gray-500">初始 Brix</span>
                                         <span id="theory-brix" class="text-amber-400">0.00</span>
                                     </div>
-                                    <p class="text-[9px] text-gray-600 mt-1">推荐: 8.0-10.0</p>
+                                    <p class="text-[9px] text-gray-600 mt-1">推荐: 9.0-12.0</p>
                                 </div>
                                 <div>
                                     <div class="flex justify-between">
@@ -182,7 +182,7 @@
                                         <span class="text-gray-500">启动液比例</span>
                                         <span id="starter-pct" class="text-blue-400">18%</span>
                                     </div>
-                                    <p class="text-[9px] text-gray-600 mt-1">推荐: 15%-25%</p>
+                                    <p class="text-[9px] text-gray-600 mt-1">推荐: 10%-15%</p>
                                 </div>
                             </div>
                         </div>
@@ -285,6 +285,14 @@
                 <div class="flex-grow overflow-y-auto custom-scrollbar pr-1">
                 <div id="history-container" class="space-y-3 table-scroll"></div>
             </div>
+            
+            <button id="btn-end-f1" class="hidden w-full py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-black font-black rounded-xl transition-all shadow-lg shadow-orange-600/20 text-sm uppercase tracking-widest mt-4">
+                🍾 结束一发，开始装瓶
+            </button>
+            
+            <div id="f1-locked-hint" class="hidden text-center py-2">
+                <p class="text-xs mono text-orange-400 font-bold">⚠️ 一发已锁死，数据已封存</p>
+            </div>
         </div>
     </div>
     
@@ -372,6 +380,13 @@
 </div>
 
 <div id="f2-panel">
+    <div id="f2-overlay" class="relative">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-2xl z-10 flex items-center justify-center pointer-events-none" id="f2-disabled-mask">
+            <div class="text-center">
+                <p class="text-2xl font-bold text-gray-500 mb-2">🔒 F2 模块未激活</p>
+                <p class="text-sm text-gray-600">请先完成一发发酵，点击"结束一发，开始装瓶"</p>
+            </div>
+        </div>
     <div class="bg-gradient-to-b from-gray-900/80 to-gray-950 border border-gray-700/50 rounded-2xl p-4 md:p-6 shadow-lg shadow-black/20">
         <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-2">
@@ -516,10 +531,10 @@
                     <p id="f2-chill-hint" class="text-[10px] md:text-xs mono text-blue-300 text-center mt-3 pt-3 border-t border-gray-800"></p>
                     
                     <div class="mt-4 pt-4 border-t border-gray-800">
-                        <button id="add-to-calendar-f2" class="w-full py-2 bg-green-600/20 text-green-400 text-xs font-bold rounded-lg border border-green-600/30 hover:bg-green-600/30 transition-all mb-3">
+                        <button id="add-to-calendar-f2" class="w-full py-2 bg-green-600/20 text-green-400 text-xs font-bold rounded-lg border border-green-600/30 hover:bg-green-600/30 transition-all mb-3 opacity-50 cursor-not-allowed" disabled>
                             添加提醒到日历
                         </button>
-                        <button id="f2-start-chill" class="w-full py-2.5 bg-blue-600/20 text-blue-400 text-xs font-bold rounded-lg border border-blue-600/30 hover:bg-blue-600/30 transition-all">
+                        <button id="f2-start-chill" class="w-full py-2.5 bg-blue-600/20 text-blue-400 text-xs font-bold rounded-lg border border-blue-600/30 hover:bg-blue-600/30 transition-all opacity-50 cursor-not-allowed" disabled>
                             开始冷藏
                         </button>
                     </div>
@@ -539,98 +554,8 @@
             </div>
         </div>
     </div>
+    </div>
     
-    <script>
-        let chillModeActive = false;
-        let chillTimerInterval = null;
-        let chillEndTime = null;
-        
-        function startChillMode() {
-            if (chillModeActive) return;
-            
-            if (!confirm('已移入冰箱？确认后将进入冷藏锁定模式，启动 24 小时倒计时。')) {
-                return;
-            }
-            
-            chillModeActive = true;
-            chillEndTime = Date.now() + 24 * 60 * 60 * 1000;
-            
-            document.getElementById('f2-chill-mode').classList.remove('hidden');
-            document.getElementById('f2-start-chill').classList.add('hidden');
-            
-            updateChillTimer();
-            chillTimerInterval = setInterval(updateChillTimer, 1000);
-            
-            localStorage.setItem('chillMode', JSON.stringify({ active: true, endTime: chillEndTime }));
-        }
-        
-        function updateChillTimer() {
-            if (!chillEndTime) return;
-            
-            const remaining = chillEndTime - Date.now();
-            if (remaining <= 0) {
-                clearInterval(chillTimerInterval);
-                document.getElementById('f2-chill-status').textContent = '最佳赏味期已达标';
-                document.getElementById('f2-chill-timer').textContent = '完成!';
-                localStorage.removeItem('chillMode');
-                return;
-            }
-            
-            const hours = Math.floor(remaining / 3600000);
-            const minutes = Math.floor((remaining % 3600000) / 60000);
-            const seconds = Math.floor((remaining % 60000) / 1000);
-            
-            document.getElementById('f2-chill-timer').textContent = 
-                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        }
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('f2-start-chill').addEventListener('click', startChillMode);
-            
-            document.getElementById('f2-add-chill-reminder').addEventListener('click', () => {
-                const endTime = new Date(chillEndTime);
-                const event = {
-                    title: '康普茶开瓶提醒',
-                    start: endTime.toISOString(),
-                    duration: { minutes: 30 }
-                };
-                
-                if (navigator.calendar && navigator.calendar.createEvent) {
-                    navigator.calendar.createEvent(event);
-                } else if ('webkitRequestFileSystem' in window) {
-                    const url = `data:text/calendar;charset=utf-8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ASUMMARY:${encodeURIComponent(event.title)}%0ADTSTART:${endTime.toISOString().replace(/-/g, '').replace(/:/g, '').substring(0, 15)}%0ADURATION:PT30M%0AEND:VEVENT%0AEND:VCALENDAR`;
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'kombucha-reminder.ics';
-                    a.click();
-                }
-            });
-            
-            const savedChill = localStorage.getItem('chillMode');
-            if (savedChill) {
-                try {
-                    const data = JSON.parse(savedChill);
-                    if (data.active && data.endTime) {
-                        chillModeActive = true;
-                        chillEndTime = data.endTime;
-                        
-                        document.getElementById('f2-chill-mode').classList.remove('hidden');
-                        document.getElementById('f2-start-chill').classList.add('hidden');
-                        
-                        if (chillEndTime > Date.now()) {
-                            updateChillTimer();
-                            chillTimerInterval = setInterval(updateChillTimer, 1000);
-                        } else {
-                            document.getElementById('f2-chill-status').textContent = '最佳赏味期已达标';
-                            document.getElementById('f2-chill-timer').textContent = '完成!';
-                        }
-                    }
-                } catch (e) {
-                    localStorage.removeItem('chillMode');
-                }
-            }
-        });
-    </script>
     <script src="engine.js"></script>
     <script src="app.js"></script>
     <script>
@@ -647,15 +572,12 @@
         }
     </script>
     
-    <div class="fixed bottom-0 left-0 right-0 bg-gray-950/95 border-t border-gray-800 backdrop-blur-md p-4 z-50">
-        <div class="max-w-[1440px] mx-auto">
-            <button id="btn-new-batch-footer" class="w-full py-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-black font-black rounded-xl transition-all shadow-lg shadow-amber-600/20">
-                开始新批次
-            </button>
-        </div>
+    <div class="max-w-[1440px] mx-auto mt-8 mb-8 px-4">
+        <button id="btn-new-batch-footer" class="w-full py-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-black font-black rounded-xl transition-all shadow-lg shadow-amber-600/20">
+            🔄 开始新批次
+        </button>
     </div>
     
-    <div style="height: 80px;"></div>
 </body>
 </html>
 <!-- trigger deployment -->

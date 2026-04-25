@@ -25,10 +25,10 @@ class KombuchaEngineV4 {
         this.starterPct = ((mSt / this.totalMass) * 100);
 
         let brixClass = 'text-green-400';
-        if (this.initBrix < 8.0 || this.initBrix > 10.0) {
+        if (this.initBrix < 9.0 || this.initBrix > 12.0) {
             brixClass = 'text-yellow-400';
         }
-        if (this.initBrix < 6.0 || this.initBrix > 12.0) {
+        if (this.initBrix < 6.0 || this.initBrix > 15.0) {
             brixClass = 'text-red-400 font-bold';
         }
 
@@ -41,10 +41,10 @@ class KombuchaEngineV4 {
         }
 
         let starterClass = 'text-green-400';
-        if (this.starterPct < 15 || this.starterPct > 25) {
+        if (this.starterPct < 10 || this.starterPct > 15) {
             starterClass = 'text-yellow-400';
         }
-        if (this.starterPct < 10 || this.starterPct > 35) {
+        if (this.starterPct < 5 || this.starterPct > 25) {
             starterClass = 'text-red-400 font-bold';
         }
 
@@ -93,10 +93,13 @@ class KombuchaEngineV4 {
             };
         }
         
+        const firstBrixRecord = this.logs.find(l => l.brix !== null);
+        const f1InitBrix = firstBrixRecord ? firstBrixRecord.brix : this.initBrix;
+        
         let bioHours = 0;
         let processed = [];
-        let currentBrix = this.initBrix;
-        let lastRecordedBrix = this.initBrix;
+        let currentBrix = f1InitBrix;
+        let lastRecordedBrix = f1InitBrix;
         let lastBioHoursAtRecord = 0;
         const startTime = this.logs[0].timestamp;
 
@@ -122,8 +125,7 @@ class KombuchaEngineV4 {
             }
 
             if (log.brix !== null) {
-                const realBrix = (1.642 * log.brix) - (0.642 * this.initBrix);
-                currentBrix = Math.max(0, realBrix);
+                currentBrix = Math.max(0, log.brix);
                 lastRecordedBrix = currentBrix;
                 lastBioHoursAtRecord = bioHours;
             } else {
@@ -132,9 +134,9 @@ class KombuchaEngineV4 {
                 currentBrix = Math.max(0, lastRecordedBrix - brixDecay);
             }
 
-            const consumed = this.initBrix - currentBrix;
-            const tta = Math.max(0, (this.initBrix - currentBrix) * 0.08 + 0.15);
-            const abv = consumed * 0.45;
+            const brixDrop = f1InitBrix - currentBrix;
+            const abv = Math.max(0, brixDrop * 0.5);
+            const tta = Math.max(0, brixDrop * 0.08 + 0.15);
 
             processed.push({
                 log,
@@ -148,7 +150,7 @@ class KombuchaEngineV4 {
         const latest = processed[processed.length - 1];
         let actionText, actionClass, abvClass;
         
-        if (latest.abv > 0.5) {
+        if (latest.abv > 2.0) {
             actionText = '🚨 酒精超标！立刻降温或冷藏';
             actionClass = 'text-lg font-bold text-red-500 bg-red-900/20 px-4 py-2 rounded-lg border border-red-900/30 animate-pulse';
             abvClass = 'text-3xl mono font-black text-red-500 animate-pulse';

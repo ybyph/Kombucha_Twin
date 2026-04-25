@@ -10,6 +10,14 @@ const FRUIT_SUGAR_RATIO = {
     'pure': 1.0
 };
 
+window.f2Activated = false;
+window.f1Locked = false;
+window.f2TargetTime = null;
+window.f2CountdownInterval = null;
+window.chillModeActive = false;
+window.chillEndTime = null;
+window.chillTimerInterval = null;
+
 function saveToStorage() {
     const params = {
         'vessel-d': document.getElementById('vessel-d').value,
@@ -37,6 +45,8 @@ function saveToStorage() {
         params: params,
         f2Data: f2Data,
         mode: engine.mode,
+        f2Activated: window.f2Activated,
+        f1Locked: window.f1Locked,
         savedAt: new Date().toISOString()
     };
     
@@ -86,6 +96,13 @@ function loadFromStorage() {
             engine.mode = data.mode;
         }
         
+        if (data.f2Activated) {
+            window.f2Activated = data.f2Activated;
+        }
+        if (data.f1Locked) {
+            window.f1Locked = data.f1Locked;
+        }
+        
         if (data.logs && Array.isArray(data.logs)) {
             data.logs.forEach(log => {
                 engine.logs.push({
@@ -119,6 +136,12 @@ function updateUI(params) {
 }
 
 function calculateF1BottlingPrediction() {
+    if (window.f1Locked) {
+        document.getElementById('f1-prediction-text').innerText = '一发已锁死，等待装瓶二发';
+        document.getElementById('add-to-calendar-f1').classList.add('hidden');
+        return;
+    }
+    
     if (engine.logs.length < 2) {
         document.getElementById('f1-prediction-text').innerText = '等待首条数据录入...';
         document.getElementById('add-to-calendar-f1').classList.add('hidden');
@@ -132,8 +155,8 @@ function calculateF1BottlingPrediction() {
         return;
     }
     
-    const prevBrix = lastTwoLogs[0].brix || engine.calculate().processed[engine.calculate().processed.length - 2]?.realBrix || 0;
-    const currBrix = lastTwoLogs[1].brix || engine.calculate().processed[engine.calculate().processed.length - 1]?.realBrix || 0;
+    const prevBrix = lastTwoLogs[0].brix || 0;
+    const currBrix = lastTwoLogs[1].brix || 0;
     const brixDrop = Math.max(0, prevBrix - currBrix);
     
     const timeDiff = (lastTwoLogs[1].timestamp - lastTwoLogs[0].timestamp) / 3600000;
@@ -188,7 +211,7 @@ function updateTimeDisplay(result) {
         document.getElementById('remaining-time').innerText = '-';
         document.getElementById('current-brix').innerText = '--';
         document.getElementById('f1-prediction-text').innerText = '等待首条数据录入...';
-        document.getElementById('f1-add-calendar').classList.add('hidden');
+        document.getElementById('add-to-calendar-f1').classList.add('hidden');
         return;
     }
     
@@ -269,11 +292,11 @@ function renderResults(result) {
                 </div>
                 <div class="col-span-1 border-r border-gray-800">
                     <p class="text-[8px] text-gray-600 uppercase">Brix</p>
-                    <p class="text-xs text-amber-500 mono">${p.log.brix || '-'}</p>
+                    <p class="text-xs text-amber-500 mono">${p.log.brix !== null ? p.log.brix : '-'}</p>
                 </div>
                 <div class="col-span-1 border-r border-gray-800">
                     <p class="text-[8px] text-gray-600 uppercase">pH</p>
-                    <p class="text-xs text-blue-400 mono">${p.log.ph || '-'}</p>
+                    <p class="text-xs text-blue-400 mono">${p.log.ph !== null ? p.log.ph : '-'}</p>
                 </div>
                 <div class="col-span-1">
                     <p class="text-[8px] text-gray-600 uppercase">ABV%</p>
@@ -359,13 +382,69 @@ function renderResults(result) {
     chart.update();
     
     calculateF1BottlingPrediction();
+    updateF1State();
+}
+
+function updateF1State() {
+    const btnEndF1 = document.getElementById('btn-end-f1');
+    const f1LockedHint = document.getElementById('f1-locked-hint');
+    const btnSubmit = document.getElementById('btn-submit');
+    
+    if (window.f1Locked) {
+        btnEndF1.classList.add('hidden');
+        f1LockedHint.classList.remove('hidden');
+        btnSubmit.disabled = true;
+        btnSubmit.classList.add('opacity-50', 'cursor-not-allowed');
+    } else if (engine.logs.length >= 2) {
+        btnEndF1.classList.remove('hidden');
+        f1LockedHint.classList.add('hidden');
+        btnSubmit.disabled = false;
+        btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed');
+    } else {
+        btnEndF1.classList.add('hidden');
+        f1LockedHint.classList.add('hidden');
+    }
+}
+
+function activateF2() {
+    window.f2Activated = true;
+    
+    const mask = document.getElementById('f2-disabled-mask');
+    if (mask) {
+        mask.style.display = 'none';
+    }
+    
+    const calendarBtn = document.getElementById('add-to-calendar-f2');
+    const chillBtn = document.getElementById('f2-start-chill');
+    calendarBtn.disabled = false;
+    calendarBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    chillBtn.disabled = false;
+    chillBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    
+    const lastLog = engine.logs[engine.logs.length - 1];
+    const bottlingBrixEl = document.getElementById('f2-bottling-brix');
+    const bottlingPhEl = document.getElementById('f2-bottling-ph');
+    
+    if (lastLog.brix !== null) {
+        bottlingBrixEl.value = lastLog.brix.toFixed(1);
+        bottlingBrixEl.dataset.userModified = 'false';
+    }
+    if (lastLog.ph !== null) {
+        bottlingPhEl.value = lastLog.ph.toFixed(1);
+        bottlingPhEl.dataset.userModified = 'false';
+    }
+    
+    calculateF2Pressure();
+    saveToStorage();
+    showToast('🍾 F2 二发已激活！');
 }
 
 function deleteEntry(id) {
+    if (window.f1Locked) return;
     const result = engine.deleteRecord(id);
     renderResults(result);
     saveToStorage();
-    updateUIGuide();
+    updateF1State();
 }
 
 function showToast(msg = '记录已保存') {
@@ -460,6 +539,8 @@ function initChart() {
 }
 
 function calculateF2Pressure() {
+    if (!window.f2Activated) return;
+    
     const bottleVolume = parseFloat(document.getElementById('f2-bottle-volume').value) || 1000;
     const fillPercent = parseFloat(document.getElementById('f2-fill-slider').value) || 90;
     const fruitType = document.getElementById('f2-fruit-type').value;
@@ -607,9 +688,9 @@ function calculateF2Pressure() {
         return;
     }
     
-    const targetTime = Date.now() + targetHours * 3600000;
+    window.f2TargetTime = Date.now() + targetHours * 3600000;
     window.f2CountdownInterval = setInterval(() => {
-        const remaining = targetTime - Date.now();
+        const remaining = window.f2TargetTime - Date.now();
         if (remaining <= 0) {
             document.getElementById('f2-time-remaining').innerText = '已达标!';
             document.getElementById('f2-time-remaining').className = 'text-xl mono font-bold text-green-400';
@@ -627,22 +708,8 @@ function calculateF2Pressure() {
     document.getElementById('f2-chill-hint').innerText = `建议于目标时间前移入冰箱冷藏，锁定压力和风味。`;
 }
 
-function syncF2BottlingDefaults() {
-    if (engine.logs.length > 0) {
-        const lastLog = engine.logs[engine.logs.length - 1];
-        const bottlingBrixEl = document.getElementById('f2-bottling-brix');
-        const bottlingPhEl = document.getElementById('f2-bottling-ph');
-        
-        if (!bottlingBrixEl.dataset.userModified && lastLog.brix !== null) {
-            bottlingBrixEl.value = lastLog.brix.toFixed(1);
-        }
-        if (!bottlingPhEl.dataset.userModified && lastLog.ph !== null) {
-            bottlingPhEl.value = lastLog.ph.toFixed(1);
-        }
-    }
-}
-
 function startChillMode() {
+    if (!window.f2Activated) return;
     if (window.chillModeActive) return;
     
     if (!confirm('已移入冰箱？确认后将进入冷藏锁定模式，启动 24 小时倒计时。')) {
@@ -742,8 +809,14 @@ function startNewBatch() {
         if (window.chillTimerInterval) {
             clearInterval(window.chillTimerInterval);
         }
+        if (window.f2CountdownInterval) {
+            clearInterval(window.f2CountdownInterval);
+        }
         window.chillModeActive = false;
         window.chillEndTime = null;
+        window.f2Activated = false;
+        window.f1Locked = false;
+        window.f2TargetTime = null;
         
         engine.logs = [];
         engine.mode = 'point';
@@ -762,6 +835,8 @@ function startNewBatch() {
         document.getElementById('f2-fruit-type').value = 'medium';
         document.getElementById('f2-fruit-weight').value = '0';
         document.getElementById('f2-extra-sugar').value = '0';
+        document.getElementById('f2-bottling-brix').value = '5.0';
+        document.getElementById('f2-bottling-ph').value = '3.5';
         if (document.getElementById('f2-additive-light')) {
             document.getElementById('f2-additive-light').checked = false;
         }
@@ -772,19 +847,31 @@ function startNewBatch() {
         
         document.getElementById('f2-chill-mode').classList.add('hidden');
         document.getElementById('f2-start-chill').classList.remove('hidden');
+        document.getElementById('f2-start-chill').disabled = true;
+        document.getElementById('f2-start-chill').classList.add('opacity-50', 'cursor-not-allowed');
+        document.getElementById('add-to-calendar-f2').disabled = true;
+        document.getElementById('add-to-calendar-f2').classList.add('opacity-50', 'cursor-not-allowed');
         document.getElementById('f2-chill-status').textContent = '气泡锁定中，请勿开瓶';
         document.getElementById('f2-chill-timer').textContent = '24:00:00';
+        document.getElementById('f2-time-remaining').innerText = '等待数据...';
+        document.getElementById('f2-co2-value').textContent = '--';
+        document.getElementById('f2-chill-hint').innerText = '';
+        
+        const mask = document.getElementById('f2-disabled-mask');
+        if (mask) {
+            mask.style.display = 'flex';
+        }
         
         const params = engine.initParams();
         updateUI(params);
         const result = engine.calculate();
         renderResults(result);
-        calculateF2Pressure();
+        updateF1State();
         
         document.getElementById('btn-submit').disabled = false;
+        document.getElementById('btn-submit').classList.remove('opacity-50', 'cursor-not-allowed');
         
         showToast('新批次已开始');
-        updateUIGuide();
     }
 }
 
@@ -840,6 +927,19 @@ function initEventListeners() {
     document.getElementById('btn-new-batch-footer').onclick = startNewBatch;
     document.getElementById('toggle-recipe').onclick = toggleRecipePanel;
     
+    document.getElementById('btn-end-f1').onclick = () => {
+        if (engine.logs.length < 2) {
+            alert('至少需要2条记录才能结束一发');
+            return;
+        }
+        if (confirm('确定结束一发发酵吗？\n确认后F1数据将锁死，不可修改，\n并自动开启F2二发模块。')) {
+            window.f1Locked = true;
+            activateF2();
+            renderResults(engine.calculate());
+            saveToStorage();
+        }
+    };
+    
     const btnPoint = document.getElementById('mode-point');
     const btnDiurnal = document.getElementById('mode-diurnal');
     
@@ -862,6 +962,8 @@ function initEventListeners() {
     };
 
     document.getElementById('btn-submit').onclick = () => {
+        if (window.f1Locked) return;
+        
         const data = {
             time: document.getElementById('input-time').value,
             mode: engine.mode,
@@ -880,8 +982,6 @@ function initEventListeners() {
         renderResults(result);
         saveToStorage();
         showToast();
-        updateUIGuide();
-        syncF2BottlingDefaults();
     };
 
     ['vessel-d', 'liquid-h', 'm-water', 'm-tea', 'm-sugar', 'm-starter'].forEach(id => {
@@ -890,7 +990,6 @@ function initEventListeners() {
             updateUI(params);
             const result = engine.calculate();
             renderResults(result);
-            calculateF2Pressure();
             saveToStorage();
         });
     });
@@ -923,15 +1022,11 @@ function initEventListeners() {
         }
     });
     
-    if (document.getElementById('f2-start-chill')) {
-        document.getElementById('f2-start-chill').addEventListener('click', startChillMode);
-    }
-    
-    if (document.getElementById('f2-add-chill-reminder')) {
-        document.getElementById('f2-add-chill-reminder').addEventListener('click', addChillReminderToCalendar);
-    }
+    document.getElementById('f2-start-chill').addEventListener('click', startChillMode);
+    document.getElementById('f2-add-chill-reminder').addEventListener('click', addChillReminderToCalendar);
     
     document.getElementById('f2-suggest-btn').addEventListener('click', () => {
+        if (!window.f2Activated) return;
         const bottleVolume = parseFloat(document.getElementById('f2-bottle-volume').value) || 1000;
         const fillPercent = parseFloat(document.getElementById('f2-fill-slider').value) || 90;
         const liquidVolume = bottleVolume * (fillPercent / 100);
@@ -943,20 +1038,23 @@ function initEventListeners() {
     });
 
     document.getElementById('add-to-calendar-f2').addEventListener('click', () => {
-        const timeRemaining = document.getElementById('f2-time-remaining').innerText;
-        const match = timeRemaining.match(/(\d+)\s*天?\s*(\d+)?\s*小时?\s*(\d+)?\s*分钟?/);
-        if (!match) {
+        if (!window.f2Activated) {
+            alert('请先完成一发，激活F2模块');
+            return;
+        }
+        
+        if (!window.f2TargetTime) {
             alert('请先输入数据获取预测时间');
             return;
         }
         
-        let hoursToAdd = 0;
-        if (match[1]) hoursToAdd += parseInt(match[1]) * 24;
-        if (match[2]) hoursToAdd += parseInt(match[2]);
-        if (match[3]) hoursToAdd += parseInt(match[3]) / 60;
+        const targetTime = new Date(window.f2TargetTime);
+        const startTime = new Date(Date.now());
         
-        const targetTime = new Date(Date.now() + hoursToAdd * 3600000);
-        const url = `data:text/calendar;charset=utf-8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ASUMMARY:${encodeURIComponent('康普茶二发装瓶提醒')}%0ADTSTART:${targetTime.toISOString().replace(/-/g, '').replace(/:/g, '').substring(0, 15)}%0ADURATION:PT1H%0ADESCRIPTION:康普茶二发发酵完成，建议检查压力后冷藏。%0AEND:VEVENT%0AEND:VCALENDAR`;
+        const dtstart = startTime.toISOString().replace(/-/g, '').replace(/:/g, '').substring(0, 15);
+        const dtend = targetTime.toISOString().replace(/-/g, '').replace(/:/g, '').substring(0, 15);
+        
+        const url = `data:text/calendar;charset=utf-8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ASUMMARY:${encodeURIComponent('康普茶二发装瓶提醒')}%0ADTSTART:${dtstart}%0ADTEND:${dtend}%0ADESCRIPTION:康普茶二发发酵预计达成目标压力，建议检查后冷藏。%0AEND:VEVENT%0AEND:VCALENDAR`;
         const a = document.createElement('a');
         a.href = url;
         a.download = 'kombucha-f2-reminder.ics';
@@ -985,8 +1083,26 @@ window.onload = () => {
     renderResults(result);
     
     updateUIGuide();
-    calculateF2Pressure();
-    syncF2BottlingDefaults();
+    updateF1State();
+    
+    if (window.f2Activated) {
+        const mask = document.getElementById('f2-disabled-mask');
+        if (mask) {
+            mask.style.display = 'none';
+        }
+        const calendarBtn = document.getElementById('add-to-calendar-f2');
+        const chillBtn = document.getElementById('f2-start-chill');
+        calendarBtn.disabled = false;
+        calendarBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        chillBtn.disabled = false;
+        chillBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        calculateF2Pressure();
+    } else {
+        const mask = document.getElementById('f2-disabled-mask');
+        if (mask) {
+            mask.style.display = 'flex';
+        }
+    }
     
     const savedChill = localStorage.getItem('chillMode');
     if (savedChill) {
@@ -1016,7 +1132,9 @@ window.onload = () => {
         if (engine.logs.length > 0) {
             const result = engine.calculate();
             updateTimeDisplay(result);
-            calculateF2Pressure();
+            if (window.f2Activated) {
+                calculateF2Pressure();
+            }
         }
     }, 60000);
 };
