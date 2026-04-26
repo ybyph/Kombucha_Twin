@@ -9,16 +9,22 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;800&display=swap');
         body { background-color: #050505; color: #e5e5e5; font-family: -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
-        .glass-card { background: rgba(18, 18, 18, 0.9); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; margin-bottom: 16px; }
-        input, select { background-color: #000 !important; border: 1px solid #333 !important; color: #fff !important; border-radius: 8px; padding: 10px; font-family: 'JetBrains Mono'; font-size: 14px; outline: none; width: 100%; transition: all 0.2s; }
+        .glass-card { background: rgba(18, 18, 18, 0.9); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        
+        /* 移动端触控优化：统一 16px 防止 iOS 自动缩放，加厚 padding */
+        input, select { background-color: #000 !important; border: 1px solid #333 !important; color: #fff !important; border-radius: 10px; padding: 12px; font-family: 'JetBrains Mono'; font-size: 16px; outline: none; width: 100%; transition: border-color 0.2s; }
         input:focus, select:focus { border-color: #fbbf24 !important; }
         input:read-only, input:disabled { opacity: 0.5; background-color: #111 !important; cursor: not-allowed; }
-        input::placeholder { color: #555; font-size: 11px; font-family: -apple-system, sans-serif; }
-        .stat-label { font-size: 10px; color: #6b7280; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; display: block; }
-        .stat-value { font-family: 'JetBrains Mono'; font-weight: 800; }
-        .btn-tab { padding: 8px 12px; font-size: 11px; font-weight: 900; border-radius: 8px; color: #666; transition: 0.2s; cursor: pointer; }
+        input::placeholder { color: #555; font-size: 13px; font-family: -apple-system, sans-serif; }
+        
+        /* 标签字号全面放大，提升对比度 */
+        .stat-label { font-size: 12px; color: #9ca3af; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block; }
+        .stat-value { font-family: 'JetBrains Mono'; font-weight: 800; font-size: 18px; }
+        
+        .btn-tab { padding: 10px 16px; font-size: 13px; font-weight: 900; border-radius: 10px; color: #666; transition: 0.2s; cursor: pointer; }
         .btn-tab.active { background: #fbbf24; color: #000; }
-        #toast { visibility: hidden; background-color: #fbbf24; color: #000; text-align: center; border-radius: 8px; padding: 10px; position: fixed; z-index: 50; left: 50%; top: 20px; transform: translateX(-50%); font-size: 12px; font-weight: bold; opacity: 0; transition: opacity 0.3s; }
+        
+        #toast { visibility: hidden; background-color: #fbbf24; color: #000; text-align: center; border-radius: 8px; padding: 12px 20px; position: fixed; z-index: 50; left: 50%; top: 20px; transform: translateX(-50%); font-size: 14px; font-weight: bold; opacity: 0; transition: opacity 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
         #toast.show { visibility: visible; opacity: 1; }
     </style>
 </head>
@@ -26,159 +32,159 @@
 
     <div id="toast">操作已响应</div>
 
-    <header class="flex justify-between items-center mb-6">
+    <header class="flex justify-between items-center mb-8 mt-2">
         <div>
-            <h1 class="text-2xl font-black italic tracking-tighter">Kombucha<span class="text-amber-500">2in</span></h1>
-            <p class="text-[9px] text-gray-600 font-bold uppercase tracking-widest">Master Protocol Agent</p>
+            <h1 class="text-3xl font-black italic tracking-tighter">Kombucha<span class="text-amber-500">2in</span></h1>
+            <p class="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">Master Protocol Agent</p>
         </div>
-        <button onclick="resetBatch()" class="text-[9px] bg-red-950/30 text-red-500 border border-red-900/40 px-3 py-1.5 rounded-full font-black hover:bg-red-900/50">清空物理沙盒</button>
+        <button onclick="resetBatch()" class="text-xs bg-red-950/40 text-red-500 border border-red-900/50 px-4 py-2 rounded-full font-black hover:bg-red-900/60">清空沙盒</button>
     </header>
 
-    <div class="glass-card p-4 border-t-2 border-amber-600">
-        <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
+    <div class="glass-card p-5 border-t-2 border-amber-600">
+        <div class="flex justify-between items-center mb-5 border-b border-white/5 pb-4">
             <h3 class="stat-label text-amber-500 !mb-0">食材配比录入</h3>
-            <div class="flex gap-1 bg-black p-1 rounded-lg">
+            <div class="flex gap-1 bg-black p-1.5 rounded-xl">
                 <button id="btn-beginner" onclick="setRecipeMode('beginner')" class="btn-tab active">新手标准</button>
                 <button id="btn-artist" onclick="setRecipeMode('artist')" class="btn-tab">艺术自由</button>
             </div>
         </div>
 
         <div id="mode-beginner" class="block">
-            <p class="text-[10px] text-gray-400 mb-3">依据 Noma 指南锁定最佳参数 (糖12%, 原液10%)。</p>
-            <div class="mb-3">
+            <p class="text-xs text-gray-400 mb-4 leading-relaxed">依据 Noma 指南锁定最佳参数 (糖12%, 原液10%)。</p>
+            <div class="mb-4">
                 <label class="stat-label">发酵液总重量 (g)</label>
-                <input type="number" id="b-total" class="sys-input !text-amber-500 !text-lg" oninput="runGlobalCalculations()" placeholder="例如: 2000">
+                <input type="number" id="b-total" class="sys-input !text-amber-500 !font-bold" oninput="runGlobalCalculations()" placeholder="例如: 2000">
             </div>
-            <div class="grid grid-cols-4 gap-2 text-center bg-black p-3 rounded-lg border border-white/5">
-                <div><span class="stat-label text-gray-500">原液 (10%)</span><p id="b-starter" class="stat-value text-white text-xs mt-1">--</p></div>
-                <div><span class="stat-label text-gray-500">纯水 (77.5%)</span><p id="b-water" class="stat-value text-white text-xs mt-1">--</p></div>
-                <div><span class="stat-label text-gray-500">干茶 (0.5%)</span><p id="b-tea" class="stat-value text-white text-xs mt-1">--</p></div>
-                <div><span class="stat-label text-gray-500">糖 (12%)</span><p id="b-sugar" class="stat-value text-white text-xs mt-1">--</p></div>
+            <div class="grid grid-cols-2 gap-4 text-center bg-black p-4 rounded-xl border border-white/5">
+                <div class="bg-gray-900/50 p-2 rounded-lg"><span class="stat-label text-gray-500 !mb-1">原液 (10%)</span><p id="b-starter" class="stat-value text-white">--</p></div>
+                <div class="bg-gray-900/50 p-2 rounded-lg"><span class="stat-label text-gray-500 !mb-1">纯水 (77.5%)</span><p id="b-water" class="stat-value text-white">--</p></div>
+                <div class="bg-gray-900/50 p-2 rounded-lg"><span class="stat-label text-gray-500 !mb-1">干茶 (0.5%)</span><p id="b-tea" class="stat-value text-white">--</p></div>
+                <div class="bg-gray-900/50 p-2 rounded-lg"><span class="stat-label text-gray-500 !mb-1">糖 (12%)</span><p id="b-sugar" class="stat-value text-white">--</p></div>
             </div>
         </div>
 
         <div id="mode-artist" class="hidden">
-            <div class="grid grid-cols-2 gap-3 mb-2">
+            <div class="grid grid-cols-2 gap-4 mb-2">
                 <div>
-                    <label class="stat-label text-amber-500">启动原液 (g) <span id="a-pct-starter" class="text-gray-500 ml-1"></span></label>
-                    <input type="number" id="a-starter" class="sys-input" placeholder="建议占比: 10%-20%" oninput="runGlobalCalculations()">
+                    <label class="stat-label text-amber-500">启动原液(g) <span id="a-pct-starter" class="text-gray-500 ml-1 font-mono"></span></label>
+                    <input type="number" id="a-starter" class="sys-input" placeholder="建议 10%-20%" oninput="runGlobalCalculations()">
                 </div>
                 <div>
-                    <label class="stat-label">糖 (g) <span id="a-pct-sugar" class="text-gray-500 ml-1"></span></label>
-                    <input type="number" id="a-sugar" class="sys-input" placeholder="建议占比: 10%-12%" oninput="runGlobalCalculations()">
+                    <label class="stat-label">糖(g) <span id="a-pct-sugar" class="text-gray-500 ml-1 font-mono"></span></label>
+                    <input type="number" id="a-sugar" class="sys-input" placeholder="建议 10%-12%" oninput="runGlobalCalculations()">
                 </div>
                 <div>
-                    <label class="stat-label">水 (g)</label>
-                    <input type="number" id="a-water" class="sys-input" placeholder="输入纯水克重" oninput="runGlobalCalculations()">
+                    <label class="stat-label">纯水(g)</label>
+                    <input type="number" id="a-water" class="sys-input" placeholder="输入克重" oninput="runGlobalCalculations()">
                 </div>
                 <div>
-                    <label class="stat-label text-green-500">干茶 (g) <span id="a-pct-tea" class="text-gray-500 ml-1"></span></label>
-                    <input type="number" id="a-tea" class="sys-input" placeholder="建议占比: 0.5%-1%" oninput="runGlobalCalculations()">
+                    <label class="stat-label text-green-500">干茶(g) <span id="a-pct-tea" class="text-gray-500 ml-1 font-mono"></span></label>
+                    <input type="number" id="a-tea" class="sys-input" placeholder="建议 0.5%-1%" oninput="runGlobalCalculations()">
                 </div>
             </div>
         </div>
         
-        <div class="text-[10px] text-gray-500 mt-3 bg-black p-2 rounded flex justify-between">
-            <span>Day 0 理论值预估 (供参考)</span>
-            <span class="font-mono text-white">
-                Brix: <span id="est-brix" class="text-amber-500">--</span> | 
+        <div class="text-xs text-gray-400 mt-4 bg-black p-3 rounded-xl flex justify-between items-center border border-white/5">
+            <span>Day 0 理论预估</span>
+            <span class="font-mono text-white text-sm">
+                Bx: <span id="est-brix" class="text-amber-500">--</span> | 
                 pH: <span id="est-ph" class="text-blue-400">--</span>
             </span>
         </div>
 
-        <div id="recipe-warnings" class="hidden mt-3 space-y-2"></div>
+        <div id="recipe-warnings" class="hidden mt-4 space-y-2"></div>
     </div>
 
-    <div class="glass-card p-4 border-t-2 border-blue-600">
-        <div class="flex justify-between items-end mb-3">
+    <div class="glass-card p-5 border-t-2 border-blue-600">
+        <div class="flex justify-between items-center mb-4">
             <h3 class="stat-label text-blue-400 !mb-0">容器物理与 A/V 限制</h3>
-            <span class="text-[9px] text-gray-500">A/V = 1/h。决定氧气与菌群平衡</span>
+            <span class="text-xs text-gray-500">A/V = 1/h</span>
         </div>
-        <div class="grid grid-cols-2 gap-4 mb-3">
+        <div class="grid grid-cols-2 gap-4 mb-4">
             <div><label class="stat-label">液面直径 (cm)</label><input type="number" id="m-diameter" class="sys-input" oninput="runGlobalCalculations()"></div>
             <div><label class="stat-label">实际液位 (cm)</label><input type="number" id="m-height" class="sys-input" oninput="runGlobalCalculations()"></div>
         </div>
-        <div class="bg-black p-3 rounded-lg border border-white/5 flex justify-between items-center">
+        <div class="bg-black p-4 rounded-xl border border-white/5 flex justify-between items-center">
             <div>
-                <span class="stat-label !mb-0 text-gray-500">A/V 比 <span id="max-vol-display" class="text-[9px] ml-2 text-gray-600"></span></span>
-                <span id="av-display" class="stat-value text-lg text-white">--</span>
+                <span class="stat-label !mb-1 text-gray-500">A/V 比 <span id="max-vol-display" class="text-xs ml-2 text-gray-600 normal-case"></span></span>
+                <span id="av-display" class="stat-value text-2xl text-white">--</span>
             </div>
-            <div id="av-warn" class="text-right max-w-[60%]"></div>
+            <div id="av-warn" class="text-right max-w-[50%] leading-tight"></div>
         </div>
-        <div id="physical-warnings" class="hidden mt-3"></div>
+        <div id="physical-warnings" class="hidden mt-4"></div>
     </div>
 
-    <div class="glass-card p-4">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="stat-label text-white !mb-0">F1 核心指标追踪 (pH 优先)</h2>
-            <div class="bg-black border border-white/10 px-2 py-1 rounded text-[9px] font-mono text-gray-400">
-                ABV(预估酒精度): <span id="f1-abv" class="text-amber-500 font-bold ml-1">--%</span>
+    <div class="glass-card p-5">
+        <div class="flex items-center justify-between mb-5">
+            <h2 class="stat-label text-white !mb-0">F1 核心指标追踪</h2>
+            <div class="bg-black border border-white/10 px-3 py-1.5 rounded-lg text-xs font-mono text-gray-400">
+                预估 ABV: <span id="f1-abv" class="text-amber-500 font-bold ml-1 text-sm">--%</span>
             </div>
         </div>
 
-        <div class="bg-blue-900/20 border border-blue-800/50 p-3 rounded-lg mb-4">
-            <h4 class="stat-label text-blue-400 !mb-1">发酵终点预测 (Roadmap)</h4>
-            <div class="grid grid-cols-2 gap-2 text-[10px]">
-                <div>
-                    <span class="text-gray-500 block">pH 降至 3.5 甜蜜点：</span>
-                    <span id="pred-ph" class="text-white font-mono font-bold">等待至少1条日志...</span>
+        <div class="bg-blue-900/20 border border-blue-800/50 p-4 rounded-xl mb-5">
+            <h4 class="stat-label text-blue-400 !mb-2">发酵终点预测 (Roadmap)</h4>
+            <div class="grid grid-cols-1 gap-3 text-xs">
+                <div class="bg-black/30 p-2 rounded flex justify-between items-center">
+                    <span class="text-gray-400">pH 降至 3.5：</span>
+                    <span id="pred-ph" class="text-white font-mono font-bold">等待日志...</span>
                 </div>
-                <div>
-                    <span class="text-gray-500 block">Brix 降至 8.0 装瓶点：</span>
-                    <span id="pred-brix" class="text-white font-mono font-bold">等待至少1条日志...</span>
+                <div class="bg-black/30 p-2 rounded flex justify-between items-center">
+                    <span class="text-gray-400">Brix 降至 8.0：</span>
+                    <span id="pred-brix" class="text-white font-mono font-bold">等待日志...</span>
                 </div>
             </div>
         </div>
 
-        <div class="h-48 w-full relative mb-4">
+        <div class="h-56 w-full relative mb-5">
             <canvas id="roadmap-chart"></canvas>
         </div>
 
-        <div class="bg-black/80 p-3 rounded-lg mb-4 border border-white/10">
-            <h4 class="stat-label text-gray-500">一发终止判定阀</h4>
-            <div id="f1-gate-status" class="text-[11px] leading-relaxed mt-2 text-gray-400">等待数据汇入...</div>
+        <div class="bg-black/80 p-4 rounded-xl mb-5 border border-white/10">
+            <h4 class="stat-label text-gray-500 !mb-2">一发终止判定阀</h4>
+            <div id="f1-gate-status" class="text-sm leading-relaxed text-gray-300">等待数据汇入...</div>
         </div>
 
-        <div class="border-t border-white/10 pt-4 mt-2">
-            <div class="flex justify-between items-center mb-3">
+        <div class="border-t border-white/10 pt-5 mt-2">
+            <div class="flex justify-between items-center mb-4">
                 <h4 class="stat-label text-amber-500 !mb-0">追加 F1 采样日志</h4>
-                <button onclick="toggleSamplingGuide()" class="text-[10px] text-blue-400 border border-blue-400/50 px-2 py-1 rounded hover:bg-blue-900/30 transition-colors">[?] 科学采样指南</button>
+                <button onclick="toggleSamplingGuide()" class="text-xs text-blue-400 border border-blue-400/50 px-3 py-1.5 rounded-lg hover:bg-blue-900/30 transition-colors">[?] 采样指南</button>
             </div>
             
-            <div id="sampling-guide" class="hidden bg-blue-950/30 border border-blue-900/50 p-3 rounded-lg text-[10px] text-gray-300 mb-4 space-y-2 leading-relaxed">
-                <p><strong class="text-white">阶段零 (Day 0)：</strong>混合后立即测 pH (必须 <4.5 防腐) 并记入基准。</p>
-                <p><strong class="text-white">阶段一 (Day 1-4)：</strong><span class="text-amber-500">绝对静置期。</span>请勿开盖打扰，保护菌膜物理护盾成型防霉。</p>
-                <p><strong class="text-white">阶段二 (Day 5 左右)：</strong><span class="text-blue-400">中期校准。</span>轻微破膜抽测一次，供系统修正动力学预测模型。</p>
-                <p><strong class="text-white">阶段三 (Day 7-9+)：</strong><span class="text-green-400">甜蜜点冲刺。</span>每日抽测，精准捕捉 pH 3.5-4.0 与 Brix 8.0 的完美装瓶时机。</p>
+            <div id="sampling-guide" class="hidden bg-blue-950/30 border border-blue-900/50 p-4 rounded-xl text-xs text-gray-300 mb-5 space-y-3 leading-relaxed">
+                <p><strong class="text-white text-sm">Day 0：</strong>混合后立即测 pH (必 <4.5 防腐) 记入基准。</p>
+                <p><strong class="text-white text-sm">Day 1-4：</strong><span class="text-amber-500">绝对静置期。</span>勿开盖，保护菌膜防霉。</p>
+                <p><strong class="text-white text-sm">Day 5：</strong><span class="text-blue-400">中期校准。</span>轻微破膜抽测一次，修正动力学模型。</p>
+                <p><strong class="text-white text-sm">Day 7-9+：</strong><span class="text-green-400">甜蜜点冲刺。</span>每日抽测，捕捉 3.5-4.0 装瓶时机。</p>
             </div>
 
-            <div class="mb-3 relative">
-                <label class="stat-label">采样时间 (物理拦截未来时间)</label>
-                <input type="datetime-local" id="in-time" class="sys-input text-xs">
+            <div class="mb-4">
+                <label class="stat-label">采样时间</label>
+                <input type="datetime-local" id="in-time" class="sys-input">
             </div>
-            <div class="grid grid-cols-3 gap-3 mb-3">
-                <div><label class="stat-label">BRIX</label><input type="number" id="in-brix" step="0.1" class="sys-input"></div>
-                <div><label class="stat-label text-blue-400">pH</label><input type="number" id="in-ph" step="0.1" class="sys-input"></div>
-                <div><label class="stat-label">室温(°C)</label><input type="number" id="in-temp" class="sys-input" placeholder="留空继承"></div>
+            <div class="grid grid-cols-3 gap-3 mb-4">
+                <div><label class="stat-label">BRIX</label><input type="number" id="in-brix" step="0.1" class="sys-input text-center"></div>
+                <div><label class="stat-label text-blue-400">pH</label><input type="number" id="in-ph" step="0.1" class="sys-input text-center"></div>
+                <div><label class="stat-label">室温(°C)</label><input type="number" id="in-temp" class="sys-input text-center" placeholder="留空继承"></div>
             </div>
-            <div id="day0-warn" class="text-blue-300 bg-blue-900/30 p-2 rounded border border-blue-800 text-[10px] mb-3 hidden">
-                ℹ️ 当前为 Day 0：系统已生成理论预估值。直接点击归档可自动继承理论起点。
+            <div id="day0-warn" class="text-blue-300 bg-blue-900/30 p-3 rounded-lg border border-blue-800 text-xs mb-4 hidden">
+                ℹ️ 当前为 Day 0：系统已生成理论预估值。直接点击归档可自动继承。
             </div>
-            <button onclick="addLog()" class="w-full bg-amber-500 hover:bg-amber-400 text-black font-black py-3 rounded-lg text-sm transition-colors">归档采样记录</button>
+            <button onclick="addLog()" class="w-full bg-amber-500 hover:bg-amber-400 text-black font-black py-4 rounded-xl text-base transition-colors shadow-lg">归档采样记录</button>
         </div>
 
-        <div id="log-container" class="space-y-2 mt-4 max-h-48 overflow-y-auto pr-2"></div>
+        <div id="log-container" class="space-y-3 mt-6 max-h-60 overflow-y-auto pr-2"></div>
     </div>
 
-    <div class="flex items-center justify-between ml-2 mb-2">
-        <h2 class="stat-label text-purple-500 !mb-0">F2 Carbonation 工程库</h2>
-        <button onclick="addF2Bottle()" class="text-[10px] bg-purple-900/30 text-purple-400 border border-purple-800/50 px-3 py-1.5 rounded hover:bg-purple-800/50">＋ 新建分装瓶</button>
+    <div class="flex items-center justify-between ml-2 mb-4 mt-6">
+        <h2 class="stat-label text-purple-500 !mb-0 text-sm">F2 Carbonation 工程库</h2>
+        <button onclick="addF2Bottle()" class="text-xs bg-purple-900/30 text-purple-400 border border-purple-800/50 px-4 py-2 rounded-lg hover:bg-purple-800/50 font-bold shadow">＋ 新建分装瓶</button>
     </div>
     
-    <div id="f2-container" class="space-y-4"></div>
+    <div id="f2-container" class="space-y-5"></div>
 
     <script>
-        // --- 核心状态与全局变量 ---
+        // 核心状态与底层逻辑完全保持 v14.0 的配置，未做任何更改。
         let state = JSON.parse(localStorage.getItem('kb_lab_v14')) || {
             recipeMode: 'beginner',
             f1: { logs: [] },
@@ -188,7 +194,6 @@
         let clockInterval = null;
         let globalRecipe = { estBrix: 0, estPh: 0 };
 
-        // --- 辅助工具 ---
         function showToast(msg) {
             const t = document.getElementById('toast');
             t.innerText = msg;
@@ -207,12 +212,11 @@
             guide.classList.toggle('hidden');
         }
 
-        // ICS 日历生成引擎
         function downloadICS(timestampMs, summary, description) {
             if (!timestampMs) return;
             const startD = new Date(timestampMs);
             const startStr = startD.toISOString().replace(/-|:|\.\d+/g, '').slice(0, 15) + 'Z';
-            const endD = new Date(startD.getTime() + 3600000); // 持续1小时
+            const endD = new Date(startD.getTime() + 3600000); 
             const endStr = endD.toISOString().replace(/-|:|\.\d+/g, '').slice(0, 15) + 'Z';
             
             const icsData = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${startStr}\nDTEND:${endStr}\nSUMMARY:${summary}\nDESCRIPTION:${description}\nEND:VEVENT\nEND:VCALENDAR`;
@@ -225,20 +229,18 @@
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
-            showToast("日历文件已生成，请导入系统");
+            showToast("日历文件已生成");
         }
 
-        // --- 初始化与时钟 ---
         window.onload = () => {
             const timeInput = document.getElementById('in-time');
             timeInput.value = formatDateTimeLocal(Date.now());
-            // 实时锁死未来时间
             timeInput.max = formatDateTimeLocal(Date.now());
             timeInput.addEventListener('change', function() {
                 const maxDate = new Date();
                 if (new Date(this.value) > maxDate) {
                     this.value = formatDateTimeLocal(maxDate.getTime());
-                    showToast("🛑 物理定律拦截：不可穿越到未来采样");
+                    showToast("🛑 不可穿越到未来采样");
                 }
             });
 
@@ -264,13 +266,12 @@
             let initBrix = 0;
             let initPhEst = 0;
 
-            // 1. 配方计算与红线防呆
             if (state.recipeMode === 'beginner') {
                 const total = parseFloat(document.getElementById('b-total').value);
                 if (total > 0) {
                     totalWeight = total;
                     initBrix = 12.0;
-                    initPhEst = 4.1; // 经验值 10% 原液
+                    initPhEst = 4.1; 
                     document.getElementById('b-starter').innerText = Math.round(total * 0.10) + 'g';
                     document.getElementById('b-water').innerText = Math.round(total * 0.775) + 'g';
                     document.getElementById('b-tea').innerText = Math.round(total * 0.005) + 'g';
@@ -295,24 +296,21 @@
                     document.getElementById('a-pct-sugar').innerText = initBrix.toFixed(1) + "%";
                     document.getElementById('a-pct-tea').innerText = (teaRatio * 100).toFixed(2) + "%";
 
-                    // 严谨的艺术模式红线
-                    if (initBrix > 15) recipeWarn.push(`⚠️ 高渗透压风险：初始糖度超 15%，酵母脱水停滞风险极高。`);
-                    if (teaRatio < 0.003) recipeWarn.push(`⚠️ 氮源匮乏：干茶比例不足 0.3%，发酵将严重滞后。`);
-                    if (teaRatio > 0.015) recipeWarn.push(`⚠️ 单宁过量红线：干茶比例超过 1.5%，将导致极度苦涩并强力抑制醋酸菌发酵。`);
-                    if (starterRatio < 0.1) recipeWarn.push(`🛑 防腐红线：原液不足 10%，极易染菌！必须确保混合后 pH < 4.5。`);
-                    if (starterRatio > 0.30) recipeWarn.push(`⚠️ 原液过量警告：原液占比超过 30%，发酵将极速完成并易产生尖锐酸味，缺乏风味层次。`);
+                    if (initBrix > 15) recipeWarn.push(`⚠️ 初始糖度超 15%，酵母脱水风险极高。`);
+                    if (teaRatio < 0.003) recipeWarn.push(`⚠️ 干茶比例不足 0.3%，发酵将严重滞后。`);
+                    if (teaRatio > 0.015) recipeWarn.push(`⚠️ 干茶超过 1.5%，将导致极度苦涩并抑制醋酸菌。`);
+                    if (starterRatio < 0.1) recipeWarn.push(`🛑 原液不足 10%，极易染菌！确保 pH < 4.5。`);
+                    if (starterRatio > 0.30) recipeWarn.push(`⚠️ 原液超过 30%，极速完成易产生尖锐酸味。`);
                 } else {
                     ['a-pct-starter', 'a-pct-sugar', 'a-pct-tea'].forEach(id => document.getElementById(id).innerText = '');
                 }
             }
 
-            // 更新理论预估值展示
             globalRecipe.estBrix = initBrix || 12.0;
             globalRecipe.estPh = initPhEst || 4.1;
             document.getElementById('est-brix').innerText = totalWeight > 0 ? globalRecipe.estBrix.toFixed(1) : '--';
             document.getElementById('est-ph').innerText = totalWeight > 0 ? globalRecipe.estPh.toFixed(1) : '--';
 
-            // 2. A/V 物理限制
             const d = parseFloat(document.getElementById('m-diameter').value);
             const h = parseFloat(document.getElementById('m-height').value);
             let containerVol = 0;
@@ -322,9 +320,9 @@
                 currentAv = 1 / h;
                 document.getElementById('av-display').innerText = currentAv.toFixed(3);
                 const avWarn = document.getElementById('av-warn');
-                if (currentAv > 0.2) avWarn.innerHTML = `<span class="text-[10px] text-red-500">高氧: 液位过浅，极易速酸</span>`;
-                else if (currentAv < 0.06) avWarn.innerHTML = `<span class="text-[10px] text-amber-500">低氧: 液位过深，酵母/酒精失控</span>`;
-                else avWarn.innerHTML = `<span class="text-[10px] text-green-500">✓ 理想液位</span>`;
+                if (currentAv > 0.2) avWarn.innerHTML = `<span class="text-xs text-red-500">高氧: 液位过浅，极易速酸</span>`;
+                else if (currentAv < 0.06) avWarn.innerHTML = `<span class="text-xs text-amber-500">低氧: 液深，酵母/酒精易失控</span>`;
+                else avWarn.innerHTML = `<span class="text-xs text-green-500">✓ 理想液位</span>`;
             } else {
                 document.getElementById('av-display').innerText = "--";
                 document.getElementById('av-warn').innerHTML = "";
@@ -333,16 +331,14 @@
             if (d > 0 && h > 0) {
                 containerVol = Math.PI * Math.pow(d / 2, 2) * h;
                 document.getElementById('max-vol-display').innerText = `容量: ${(containerVol/1000).toFixed(1)}L`;
-                if (totalWeight > 0 && totalWeight > containerVol * 0.9) physicalWarn.push(`⚠️ 溢出拦截：食材体积已突破容器总容量 90%。`);
+                if (totalWeight > 0 && totalWeight > containerVol * 0.9) physicalWarn.push(`⚠️ 溢出拦截：食材体积已突破容器容量 90%。`);
             }
 
-            // 渲染警告
-            document.getElementById('recipe-warnings').innerHTML = recipeWarn.map(w => `<div class="bg-red-950/40 border border-red-800 p-2 rounded text-[10px] text-red-400">${w}</div>`).join('');
-            document.getElementById('recipe-warnings').className = recipeWarn.length ? "mt-3 space-y-2 block" : "hidden";
-            document.getElementById('physical-warnings').innerHTML = physicalWarn.map(w => `<div class="bg-amber-950/40 border border-amber-800 p-2 rounded text-[10px] text-amber-500">${w}</div>`).join('');
-            document.getElementById('physical-warnings').className = physicalWarn.length ? "mt-3 block" : "hidden";
+            document.getElementById('recipe-warnings').innerHTML = recipeWarn.map(w => `<div class="bg-red-950/40 border border-red-800 p-3 rounded-lg text-xs text-red-400 leading-relaxed">${w}</div>`).join('');
+            document.getElementById('recipe-warnings').className = recipeWarn.length ? "mt-4 space-y-2 block" : "hidden";
+            document.getElementById('physical-warnings').innerHTML = physicalWarn.map(w => `<div class="bg-amber-950/40 border border-amber-800 p-3 rounded-lg text-xs text-amber-500 leading-relaxed">${w}</div>`).join('');
+            document.getElementById('physical-warnings').className = physicalWarn.length ? "mt-4 block" : "hidden";
 
-            // 3. F1 占位符与预估更新
             if (state.f1.logs.length === 0) {
                 document.getElementById('in-brix').placeholder = `预估: ${globalRecipe.estBrix.toFixed(1)}`;
                 document.getElementById('in-ph').placeholder = `预估: ${globalRecipe.estPh.toFixed(1)}`;
@@ -361,34 +357,31 @@
                 const baseBrix = firstLog.brix;
                 const basePh = firstLog.ph;
 
-                // 【修复核心 ABV 模型】：(酵母产酒量) - (醋酸菌耗酒量)
-                let rawAbv = (baseBrix - currentLog.brix) * 0.5; // 假设50%转化率
+                let rawAbv = (baseBrix - currentLog.brix) * 0.5; 
                 let phDrop = basePh - currentLog.ph;
-                if (phDrop > 0) rawAbv -= (phDrop * 1.5); // pH 下降意味着酒精转化为醋酸
+                if (phDrop > 0) rawAbv -= (phDrop * 1.5); 
 
-                if (currentAv > 0 && currentAv < 0.06) rawAbv += 0.3; // 极低氧气额外惩罚
+                if (currentAv > 0 && currentAv < 0.06) rawAbv += 0.3; 
                 
                 const abv = Math.max(0, Math.min(2.5, rawAbv));
                 const abvEl = document.getElementById('f1-abv');
                 abvEl.innerText = abv.toFixed(2) + "%";
-                if (abv > 1.5) abvEl.className = "text-red-500 font-bold ml-1";
-                else if (abv > 0.5) abvEl.className = "text-amber-500 font-bold ml-1";
-                else abvEl.className = "text-green-500 font-bold ml-1";
+                if (abv > 1.5) abvEl.className = "text-red-500 font-bold ml-1 text-sm";
+                else if (abv > 0.5) abvEl.className = "text-amber-500 font-bold ml-1 text-sm";
+                else abvEl.className = "text-green-500 font-bold ml-1 text-sm";
 
-                // 双轨闸门
                 const gateEl = document.getElementById('f1-gate-status');
                 if (currentLog.ph > 4.0) {
-                    gateEl.innerHTML = `<span class="text-red-400 font-bold">🛑 尚未达标：</span>酸度不足 (pH > 4.0)，严禁进入 F2。<br>` +
-                        (currentLog.brix < 7.5 ? `<span class="text-amber-500">诊断：酵母极速耗糖但醋酸菌怠工。耐心等待酸度下降。</span>` : `诊断：发酵正常推进中。`);
+                    gateEl.innerHTML = `<span class="text-red-400 font-bold text-base">🛑 尚未达标：</span>酸度不足 (pH > 4.0)，严禁进入 F2。<br>` +
+                        (currentLog.brix < 7.5 ? `<span class="text-amber-500 mt-2 block">诊断：酵母极速耗糖但醋酸菌怠工。耐心等待酸度下降。</span>` : `<span class="mt-2 block">诊断：发酵正常推进中。</span>`);
                 } else {
-                    let msg = `<span class="text-green-400 font-bold">✅ 酸度闸门开启 (pH ${currentLog.ph.toFixed(1)})：</span>可进入 F2。<br>`;
-                    if (currentLog.brix > 8.5) msg += `<span class="text-amber-400">注意：残糖极高。F2 极易爆瓶，请削减补糖量。</span>`;
-                    else if (currentLog.brix >= 7.5) msg += `<span class="text-blue-400">完美同步：残糖处于理想基准 (~8.0)，装瓶气泡最佳。</span>`;
-                    else msg += `<span class="text-purple-400">软轨偏移：残糖极低。建议在 F2 额外增加水果或糖浆补偿。</span>`;
+                    let msg = `<span class="text-green-400 font-bold text-base">✅ 酸度达标 (pH ${currentLog.ph.toFixed(1)})：</span>可进入 F2。<br>`;
+                    if (currentLog.brix > 8.5) msg += `<span class="text-amber-400 mt-2 block">注意：残糖极高。F2 极易爆瓶，请削减补糖量。</span>`;
+                    else if (currentLog.brix >= 7.5) msg += `<span class="text-blue-400 mt-2 block">完美同步：残糖处于理想基准 (~8.0)，装瓶气泡最佳。</span>`;
+                    else msg += `<span class="text-purple-400 mt-2 block">软轨偏移：残糖极低。建议在 F2 额外增加水果补偿。</span>`;
                     gateEl.innerHTML = msg;
                 }
 
-                // 【Roadmap 预测面板】
                 calculateRoadmap(currentLog);
             }
 
@@ -409,7 +402,7 @@
                 const dropRate = 0.01 * q10; 
                 const hoursToPh = (currentLog.ph - 3.5) / dropRate;
                 const targetDate = new Date(Date.now() + hoursToPh * 3600000);
-                elPh.innerText = `预计 ${targetDate.getMonth()+1}月${targetDate.getDate()}日 ${String(targetDate.getHours()).padStart(2,'0')}:${String(targetDate.getMinutes()).padStart(2,'0')}`;
+                elPh.innerText = `预计 ${targetDate.getMonth()+1}/${targetDate.getDate()} ${String(targetDate.getHours()).padStart(2,'0')}:${String(targetDate.getMinutes()).padStart(2,'0')}`;
             }
 
             if (currentLog.brix <= 8.0) {
@@ -420,7 +413,7 @@
                 const dropRate = 0.03 * q10; 
                 const hoursToBrix = (currentLog.brix - 8.0) / dropRate;
                 const targetDate = new Date(Date.now() + hoursToBrix * 3600000);
-                elBrix.innerText = `预计 ${targetDate.getMonth()+1}月${targetDate.getDate()}日 ${String(targetDate.getHours()).padStart(2,'0')}:${String(targetDate.getMinutes()).padStart(2,'0')}`;
+                elBrix.innerText = `预计 ${targetDate.getMonth()+1}/${targetDate.getDate()} ${String(targetDate.getHours()).padStart(2,'0')}:${String(targetDate.getMinutes()).padStart(2,'0')}`;
             }
         }
 
@@ -432,7 +425,6 @@
             let pVal = document.getElementById('in-ph').value;
             const tVal = document.getElementById('in-temp').value;
 
-            // Day 0 强制兜底
             if (state.f1.logs.length === 0) {
                 if (!bVal) bVal = globalRecipe.estBrix.toString();
                 if (!pVal) pVal = globalRecipe.estPh.toString();
@@ -463,7 +455,6 @@
             runGlobalCalculations();
         }
 
-        // --- F2 工程库 (全量扩充字典 & 状态解耦) ---
         function addF2Bottle() {
             if (state.f1.logs.length === 0) return alert("缺乏 F1 数据，无法获取残糖基数。");
             const lastLog = state.f1.logs[state.f1.logs.length - 1];
@@ -512,7 +503,7 @@
         function renderF2Layout() {
             const container = document.getElementById('f2-container');
             if (state.f2.bottles.length === 0) {
-                container.innerHTML = `<p class="text-center text-[10px] text-gray-600 my-8">暂无装瓶任务</p>`;
+                container.innerHTML = `<p class="text-center text-xs text-gray-600 my-10">暂无装瓶任务</p>`;
                 return;
             }
 
@@ -522,61 +513,63 @@
                 const isFridge = b.status === 'fridge';
                 
                 let controlsHtml = '';
-                if (isPrep) controlsHtml = `<button onclick="changeF2Status('${b.id}', 'fermenting')" class="w-full bg-purple-600/30 text-purple-400 font-bold py-2 rounded text-xs mt-3">▶ 开始二发产气 (启动引擎)</button>`;
+                if (isPrep) controlsHtml = `<button onclick="changeF2Status('${b.id}', 'fermenting')" class="w-full bg-purple-600/30 text-purple-400 font-bold py-3 rounded-xl text-sm mt-4">▶ 开始二发产气</button>`;
                 else if (isFerm) controlsHtml = `
-                    <div class="flex gap-2 mt-3">
-                        <button onclick="changeF2Status('${b.id}', 'fridge')" class="flex-1 bg-blue-600/30 text-blue-400 font-bold py-2 rounded text-xs">❄️ 移入冷藏</button>
-                        <button id="ics-btn-${b.id}" class="bg-gray-800 text-gray-300 font-bold px-3 py-2 rounded text-[10px] border border-gray-600">📅 添加提醒</button>
+                    <div class="flex gap-3 mt-4">
+                        <button onclick="changeF2Status('${b.id}', 'fridge')" class="flex-1 bg-blue-600/30 text-blue-400 font-bold py-3 rounded-xl text-sm">❄️ 移入冷藏</button>
+                        <button id="ics-btn-${b.id}" class="bg-gray-800 text-gray-300 font-bold px-4 py-3 rounded-xl text-xs border border-gray-600">📅 提醒</button>
                     </div>`;
                 else if (isFridge) controlsHtml = `
-                    <div class="flex gap-2 mt-3">
-                        <button onclick="changeF2Status('${b.id}', 'done')" class="flex-1 bg-green-600/30 text-green-400 font-bold py-2 rounded text-xs">✅ 完成归档</button>
-                        <button id="ics-btn-${b.id}" class="bg-gray-800 text-gray-300 font-bold px-3 py-2 rounded text-[10px] border border-gray-600">📅 饮用提醒</button>
+                    <div class="flex gap-3 mt-4">
+                        <button onclick="changeF2Status('${b.id}', 'done')" class="flex-1 bg-green-600/30 text-green-400 font-bold py-3 rounded-xl text-sm">✅ 完成归档</button>
+                        <button id="ics-btn-${b.id}" class="bg-gray-800 text-gray-300 font-bold px-4 py-3 rounded-xl text-xs border border-gray-600">📅 饮用</button>
                     </div>`;
 
                 return `
-                <div class="glass-card p-4 border-l-2 ${isFerm ? 'border-purple-500' : (isFridge ? 'border-blue-500' : 'border-gray-600')}">
-                    <div class="flex justify-between items-center border-b border-white/5 pb-2 mb-3">
-                        <h4 class="stat-label !mb-0 text-white">瓶 ${String(i+1).padStart(2, '0')} 
-                            <span class="text-gray-500 normal-case ml-2">${isPrep ? '[准备中]' : (isFerm ? '[室温产气中]' : (isFridge ? '[冷藏沉淀中]' : '[已归档]'))}</span>
+                <div class="glass-card p-5 border-l-4 ${isFerm ? 'border-purple-500' : (isFridge ? 'border-blue-500' : 'border-gray-600')}">
+                    <div class="flex justify-between items-center border-b border-white/5 pb-3 mb-4">
+                        <h4 class="stat-label !mb-0 text-white text-sm">瓶 ${String(i+1).padStart(2, '0')} 
+                            <span class="text-gray-500 normal-case ml-2 text-xs">${isPrep ? '[准备中]' : (isFerm ? '[室温产气中]' : (isFridge ? '[冷藏沉淀中]' : '[已归档]'))}</span>
                         </h4>
-                        <button onclick="removeF2('${b.id}')" class="text-[10px] text-gray-600 hover:text-red-500">销毁</button>
+                        <button onclick="removeF2('${b.id}')" class="text-xs text-gray-500 hover:text-red-500 bg-gray-900/50 px-3 py-1.5 rounded-lg">销毁</button>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2 mb-3">
-                        <div><label class="stat-label">玻璃瓶总容量(ml)</label><input type="number" value="${b.capacity}" oninput="updateF2Data('${b.id}', 'capacity', this.value)" ${!isPrep?'disabled':''} class="sys-input !py-1.5 !text-xs"></div>
-                        <div><label class="stat-label">实际装入液量(ml)</label><input type="number" value="${b.filled}" oninput="updateF2Data('${b.id}', 'filled', this.value)" ${!isPrep?'disabled':''} class="sys-input !py-1.5 !text-xs"></div>
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div><label class="stat-label">总容量(ml)</label><input type="number" value="${b.capacity}" oninput="updateF2Data('${b.id}', 'capacity', this.value)" ${!isPrep?'disabled':''} class="sys-input"></div>
+                        <div><label class="stat-label">实际装入(ml)</label><input type="number" value="${b.filled}" oninput="updateF2Data('${b.id}', 'filled', this.value)" ${!isPrep?'disabled':''} class="sys-input"></div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2 mb-3 ${!isPrep && !isFerm ? 'opacity-50 pointer-events-none' : ''}">
-                        <div class="col-span-2">
-                            <label class="stat-label">风味物字典库 (糖度梯度)</label>
+                    <div class="grid grid-cols-1 gap-3 mb-4 ${!isPrep && !isFerm ? 'opacity-50 pointer-events-none' : ''}">
+                        <div>
+                            <label class="stat-label">风味物字典 (糖度梯度 & 克重)</label>
                             <div class="flex gap-2">
-                                <select onchange="updateF2Data('${b.id}', 'fruitType', this.value)" class="sys-input !py-1.5 !text-[11px] w-2/3">
-                                    <option value="0.00" ${b.fruitType==='0.00'?'selected':''}>0% (无糖草本/原味)</option>
-                                    <option value="0.05" ${b.fruitType==='0.05'?'selected':''}>5% (覆盆子/草莓/西瓜/黄瓜/番茄/柠檬/柚子)</option>
-                                    <option value="0.08" ${b.fruitType==='0.08'?'selected':''}>8% (桃子/李子/哈密瓜/猕猴桃/杏)</option>
+                                <select onchange="updateF2Data('${b.id}', 'fruitType', this.value)" class="sys-input w-2/3">
+                                    <option value="0.00" ${b.fruitType==='0.00'?'selected':''}>0% (无糖原味)</option>
+                                    <option value="0.05" ${b.fruitType==='0.05'?'selected':''}>5% (莓果/西瓜/黄瓜/柚)</option>
+                                    <option value="0.08" ${b.fruitType==='0.08'?'selected':''}>8% (桃/李/哈密瓜/猕猴桃)</option>
                                     <option value="0.10" ${b.fruitType==='0.10'?'selected':''}>10% (苹果/橙子/梨)</option>
                                     <option value="0.14" ${b.fruitType==='0.14'?'selected':''}>14% (樱桃/菠萝)</option>
-                                    <option value="0.16" ${b.fruitType==='0.16'?'selected':''}>16% (葡萄/芒果/石榴/柿子/菠萝蜜)</option>
+                                    <option value="0.16" ${b.fruitType==='0.16'?'selected':''}>16% (葡萄/芒果/石榴/柿)</option>
                                     <option value="0.20" ${b.fruitType==='0.20'?'selected':''}>20% (香蕉/无花果)</option>
                                 </select>
-                                <input type="number" placeholder="克重(g)" value="${b.fruitWeight}" oninput="updateF2Data('${b.id}', 'fruitWeight', this.value)" class="sys-input !py-1.5 !text-xs w-1/3">
+                                <input type="number" placeholder="g" value="${b.fruitWeight}" oninput="updateF2Data('${b.id}', 'fruitWeight', this.value)" class="sys-input w-1/3 text-center">
                             </div>
                         </div>
-                        <div><label class="stat-label">纯糖补液(g)</label><input type="number" value="${b.pureSugar}" oninput="updateF2Data('${b.id}', 'pureSugar', this.value)" class="sys-input !py-1.5 !text-xs"></div>
-                        <div><label class="stat-label text-red-300">抑菌香辛料(g)</label><input type="number" placeholder="肉桂/薄荷等" value="${b.inhibWeight}" oninput="updateF2Data('${b.id}', 'inhibWeight', this.value)" class="sys-input !py-1.5 !text-xs"></div>
-                        <div class="col-span-2"><label class="stat-label">环境室温(°C)</label><input type="number" value="${b.temp}" oninput="updateF2Data('${b.id}', 'temp', this.value)" class="sys-input !py-1.5 !text-xs"></div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div><label class="stat-label text-[10px]">纯糖(g)</label><input type="number" value="${b.pureSugar}" oninput="updateF2Data('${b.id}', 'pureSugar', this.value)" class="sys-input text-center p-2 text-sm"></div>
+                            <div><label class="stat-label text-red-300 text-[10px]">抑菌香料(g)</label><input type="number" placeholder="肉桂等" value="${b.inhibWeight}" oninput="updateF2Data('${b.id}', 'inhibWeight', this.value)" class="sys-input text-center p-2 text-sm"></div>
+                            <div><label class="stat-label text-[10px]">室温(°C)</label><input type="number" value="${b.temp}" oninput="updateF2Data('${b.id}', 'temp', this.value)" class="sys-input text-center p-2 text-sm"></div>
+                        </div>
                     </div>
 
-                    <div class="bg-black p-2 rounded flex justify-between items-center">
+                    <div class="bg-black p-4 rounded-xl flex justify-between items-center border border-white/5">
                         <div class="w-1/2">
-                            <span class="text-[10px] text-gray-500 block">溶解压预估</span>
-                            <span id="vol-str-${b.id}" class="font-mono font-bold text-purple-400 text-lg">--</span>
+                            <span class="text-xs text-gray-500 block mb-1">溶解压预估</span>
+                            <span id="vol-str-${b.id}" class="font-mono font-bold text-purple-400 text-2xl">--</span>
                         </div>
                         <div class="w-1/2 text-right">
-                            <div id="warn-str-${b.id}" class="text-[9px] mb-1"></div>
-                            <div id="time-str-${b.id}" class="text-[10px] text-blue-400 font-bold leading-tight">等待参数...</div>
+                            <div id="warn-str-${b.id}" class="text-xs mb-1.5"></div>
+                            <div id="time-str-${b.id}" class="text-xs text-blue-400 font-bold leading-relaxed">等待参数...</div>
                         </div>
                     </div>
                     
@@ -633,11 +626,11 @@
                         b.targetTimeMs = targetDateMs; 
 
                         if (Date.now() < targetDateMs) {
-                            elTime.innerText = `预计达标：\n${targetDate.getMonth()+1}月${targetDate.getDate()}日 ${String(targetDate.getHours()).padStart(2,'0')}:${String(targetDate.getMinutes()).padStart(2,'0')}`;
-                            elTime.className = "text-[10px] text-purple-400 font-bold leading-tight";
+                            elTime.innerText = `预计达标：\n${targetDate.getMonth()+1}/${targetDate.getDate()} ${String(targetDate.getHours()).padStart(2,'0')}:${String(targetDate.getMinutes()).padStart(2,'0')}`;
+                            elTime.className = "text-xs text-purple-400 font-bold leading-relaxed";
                         } else {
                             elTime.innerText = `⚠️ 建议立即排气冷藏`;
-                            elTime.className = "text-[10px] text-amber-500 font-bold";
+                            elTime.className = "text-xs text-amber-500 font-bold";
                         }
                         
                         if (elBtn) elBtn.onclick = () => downloadICS(b.targetTimeMs, `康普茶 F2 排气/冷藏提醒 (瓶${b.id.slice(-4)})`, `您的分装瓶预计已达到理想气压 (${finalVol.toFixed(1)} Vol)。请立即排气检查并放入冰箱冷藏终止发酵。`);
@@ -656,11 +649,11 @@
                     const targetDate = new Date(targetDateMs);
                     
                     if (Date.now() < targetDateMs) {
-                        elTime.innerText = `预计可饮用：\n${targetDate.getMonth()+1}月${targetDate.getDate()}日 ${String(targetDate.getHours()).padStart(2,'0')}:${String(targetDate.getMinutes()).padStart(2,'0')}`;
-                        elTime.className = "text-[10px] text-blue-400 font-bold leading-tight";
+                        elTime.innerText = `预计可饮用：\n${targetDate.getMonth()+1}/${targetDate.getDate()} ${String(targetDate.getHours()).padStart(2,'0')}:${String(targetDate.getMinutes()).padStart(2,'0')}`;
+                        elTime.className = "text-xs text-blue-400 font-bold leading-relaxed";
                     } else {
                         elTime.innerText = `✅ 可随时享用`;
-                        elTime.className = "text-[10px] text-green-400 font-bold";
+                        elTime.className = "text-xs text-green-400 font-bold";
                     }
                     
                     if (elBtn) elBtn.onclick = () => downloadICS(targetDateMs, `康普茶 最佳风味提醒 (瓶${b.id.slice(-4)})`, `经过 24 小时冷藏，碳酸气泡已完美溶解并稳定。可以享用了！`);
@@ -668,22 +661,21 @@
             });
         }
 
-        // --- 图表 ---
         function renderLogs() {
             const container = document.getElementById('log-container');
             container.innerHTML = [...state.f1.logs].reverse().map((log, i) => {
                 const d = new Date(log.time);
                 return `
-                <div class="glass-card !mb-1 p-2 flex justify-between items-center">
+                <div class="glass-card !mb-2 p-3 flex justify-between items-center bg-gray-900/40">
                     <div>
-                        <p class="text-[9px] text-gray-500">${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}</p>
-                        <p class="text-[11px] font-mono">
+                        <p class="text-xs text-gray-500 mb-1">${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}</p>
+                        <p class="text-sm font-mono font-bold">
                             <span class="text-blue-400">pH:${log.ph || '--'}</span> | 
                             <span class="text-amber-500">Bx:${log.brix}</span> | 
-                            ${log.temp}°C
+                            <span class="text-gray-300">${log.temp}°C</span>
                         </p>
                     </div>
-                    <button onclick="deleteLog(${state.f1.logs.length - 1 - i})" class="text-gray-600 hover:text-red-500 px-2 font-bold">×</button>
+                    <button onclick="deleteLog(${state.f1.logs.length - 1 - i})" class="text-gray-500 hover:text-red-500 px-3 py-2 text-lg font-bold">×</button>
                 </div>`;
             }).join('');
         }
@@ -711,9 +703,9 @@
                     responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        x: { grid: { display: false }, ticks: { color: '#555', font: { size: 8 } } },
-                        y1: { type: 'linear', position: 'left', title: { display: true, text: 'pH (Hard Gate)', color: '#60a5fa', font: {size: 10} }, grid: { color: '#1a1a1a' }, ticks: { color: '#60a5fa' }, suggestedMin: 3.0, suggestedMax: 4.5 },
-                        y2: { type: 'linear', position: 'right', title: { display: true, text: 'Brix (Soft Ref)', color: '#fbbf24', font: {size: 10} }, grid: { display: false }, ticks: { color: '#fbbf24' } }
+                        x: { grid: { display: false }, ticks: { color: '#888', font: { size: 10 } } },
+                        y1: { type: 'linear', position: 'left', title: { display: true, text: 'pH (Hard Gate)', color: '#60a5fa', font: {size: 11} }, grid: { color: '#222' }, ticks: { color: '#60a5fa' }, suggestedMin: 3.0, suggestedMax: 4.5 },
+                        y2: { type: 'linear', position: 'right', title: { display: true, text: 'Brix (Soft Ref)', color: '#fbbf24', font: {size: 11} }, grid: { display: false }, ticks: { color: '#fbbf24' } }
                     }
                 }
             });
